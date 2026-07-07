@@ -3,72 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>عيادة المحصول — بنك الحالات (يعمل بدون إنترنت)</title>
+<title>عيادة المحصول — منصة التشخيص الزراعي</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
   :root{
-    --soil:#1f2b18; --card:#f2ecd9; --card-edge:#d8cca4; --ink:#25301c;
-    --amber:#c07a2b; --sage:#5f7a4f; --sage-l:#dfe6d2; --brick:#a8402a; --brick-l:#f0d9d2;
+    --soil:#1a2414; --soil2:#243019; --card:#f5efdd; --card-edge:#d8cca4; --ink:#25301c;
+    --amber:#c07a2b; --amber-d:#a3641f; --sage:#5f7a4f; --sage-l:#dfe6d2; --brick:#a8402a; --brick-l:#f0d9d2;
+    --gold:#d9b45a;
   }
-  @font-face{ font-family:'sysar'; src:local('Tahoma'); }
   *{box-sizing:border-box;}
   body{
-    margin:0; background:radial-gradient(circle at 20% 0%, #33452a 0%, var(--soil) 55%);
-    color:var(--card); font-family:'Tahoma','Segoe UI',sans-serif; min-height:100vh; padding:16px 12px 40px;
+    margin:0; background:linear-gradient(160deg, var(--soil2) 0%, var(--soil) 60%);
+    color:var(--card); font-family:'Tahoma','Segoe UI',sans-serif; min-height:100vh; padding:14px 12px 40px;
   }
   .wrap{max-width:480px;margin:0 auto;}
-  header{text-align:center;margin-bottom:14px;}
-  header .eyebrow{font-size:10.5px;letter-spacing:2px;color:#a9c08f;text-transform:uppercase;}
-  header h1{font-size:26px;margin:4px 0 2px;font-weight:900;}
-  header p{margin:0;font-size:12px;color:#b7c4a5;}
 
-  .stats{display:flex;gap:8px;margin:14px 0;}
-  .stat{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:8px 6px;text-align:center;}
-  .stat b{display:block;font-size:17px;color:#e8d9a8;}
-  .stat span{font-size:10px;color:#a9b696;}
-  .weak{font-size:11px;color:#d9c497;text-align:center;margin-bottom:8px;min-height:14px;}
+  /* ===== شريط الحساب ===== */
+  .authbar{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#a9c08f;margin-bottom:6px;}
+  .authbar button{background:none;border:1px solid rgba(255,255,255,0.25);color:#e8d9a8;border-radius:14px;padding:3px 10px;font-size:10.5px;cursor:pointer;}
+
+  header{text-align:center;margin:6px 0 14px;}
+  header .eyebrow{font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;}
+  header h1{font-size:27px;margin:5px 0 3px;font-weight:900;letter-spacing:0.5px;
+    background:linear-gradient(90deg,#f2ecd9,#d9b45a);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header p{margin:0;font-size:11.5px;color:#b7c4a5;}
+
+  .stats{display:flex;gap:8px;margin:14px 0 8px;}
+  .stat{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:9px 6px;text-align:center;}
+  .stat b{display:block;font-size:18px;color:var(--gold);}
+  .stat span{font-size:9.5px;color:#a9b696;}
+  .weak{font-size:11px;color:#d9c497;text-align:center;margin-bottom:6px;min-height:14px;}
+
+  .badge-row{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;}
+  .badge-chip{flex:0 0 auto;font-size:10px;padding:5px 10px;border-radius:20px;white-space:nowrap;
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:#7a8a68;}
+  .badge-chip.earned{background:linear-gradient(90deg,#c07a2b,#d9b45a);border-color:transparent;color:#241a08;font-weight:700;}
+
+  .tabbar{display:flex;gap:6px;margin-bottom:10px;background:rgba(0,0,0,0.2);border-radius:12px;padding:4px;}
+  .tab-btn{flex:1;text-align:center;padding:8px 4px;border-radius:9px;border:none;background:none;color:#b7c4a5;font-size:12px;font-weight:700;cursor:pointer;}
+  .tab-btn.active{background:var(--amber);color:#fff;}
 
   .catbar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:10px;}
-  .catbtn{
-    font-size:10.5px;padding:5px 9px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);
-    background:rgba(255,255,255,0.06);color:#dfe6d2;cursor:pointer;
-  }
+  .catbtn{font-size:10.5px;padding:5px 9px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);
+    background:rgba(255,255,255,0.06);color:#dfe6d2;cursor:pointer;}
   .catbtn.active{background:var(--amber);border-color:var(--amber);color:#fff;font-weight:700;}
 
-  .card{position:relative;background:var(--card);color:var(--ink);border-radius:6px;border:1px solid var(--card-edge);
-    box-shadow:0 18px 34px -14px rgba(0,0,0,0.55);padding:16px 16px 18px;margin-top:6px;}
-  .card::before{content:"";position:absolute;top:-9px;left:50%;transform:translateX(-50%);width:34px;height:18px;
-    background:var(--card);border:1px solid var(--card-edge);border-radius:4px;}
-
-  .illus{width:100%;display:flex;justify-content:center;background:#e9e2c9;border-radius:6px;padding:10px 0;margin-bottom:12px;}
+  .card{position:relative;background:var(--card);color:var(--ink);border-radius:14px;border:1px solid var(--card-edge);
+    box-shadow:0 20px 38px -16px rgba(0,0,0,0.6);padding:18px 16px 20px;margin-top:6px;}
+  .illus{width:100%;display:flex;justify-content:center;background:#e9e2c9;border-radius:10px;padding:12px 0;margin-bottom:12px;}
   .illus svg{width:130px;height:130px;}
-
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px dashed var(--card-edge);padding-bottom:8px;margin-bottom:10px;}
   .crop-name{font-size:18px;font-weight:900;}
   .meta{text-align:left;font-size:10px;color:#8a7d55;}
   .meta .lvl{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:20px;background:var(--sage-l);color:var(--sage);font-weight:700;font-size:10px;}
-
   .symptoms{font-size:14px;line-height:1.9;color:#3a3020;}
   .options{margin-top:14px;display:flex;flex-direction:column;gap:8px;}
-  .opt{text-align:right;padding:11px 13px;border-radius:8px;border:1.5px solid var(--card-edge);background:#fbf7ea;font-size:13.5px;color:var(--ink);cursor:pointer;}
+  .opt{text-align:right;padding:11px 13px;border-radius:9px;border:1.5px solid var(--card-edge);background:#fbf7ea;font-size:13.5px;color:var(--ink);cursor:pointer;}
   .opt:active{filter:brightness(0.97);}
   .opt.correct{background:var(--sage-l);border-color:var(--sage);font-weight:700;}
   .opt.wrong{background:var(--brick-l);border-color:var(--brick);}
   .opt:disabled{cursor:default;}
 
-  .feedback{margin-top:12px;padding:11px 13px;border-radius:8px;font-size:13px;line-height:1.8;display:none;}
+  .feedback{margin-top:12px;padding:11px 13px;border-radius:9px;font-size:13px;line-height:1.8;display:none;}
   .feedback.show{display:block;}
   .feedback.ok{background:var(--sage-l);color:#2f4324;border:1px solid var(--sage);}
   .feedback.no{background:var(--brick-l);color:#5a2015;border:1px solid var(--brick);}
   .feedback b{display:block;margin-bottom:4px;font-size:14px;}
-  .treat-box{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,0.15);font-size:12.5px;}
-  .treat-label{display:inline;font-size:12.5px;margin-left:4px;}
+  .treat-box, .prevent-box{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,0.15);font-size:12.5px;}
+  .treat-label, .prevent-label{display:inline;font-size:12.5px;margin-left:4px;}
 
-  .guide-btn{
-    display:block;width:100%;margin:2px 0 10px;padding:9px;border-radius:8px;
+  .guide-btn{display:block;width:100%;margin:2px 0 8px;padding:10px;border-radius:10px;
     border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.06);
-    color:#f2ecd9;font-size:12.5px;font-weight:700;cursor:pointer;text-align:center;
-  }
-  .modal{position:fixed;inset:0;background:rgba(10,14,7,0.92);z-index:50;display:none;padding:16px 12px;overflow-y:auto;}
+    color:#f2ecd9;font-size:12.5px;font-weight:700;cursor:pointer;text-align:center;}
+
+  .modal{position:fixed;inset:0;background:rgba(10,14,7,0.94);z-index:50;display:none;padding:16px 12px;overflow-y:auto;}
   .modal.show{display:block;}
   .modal-inner{max-width:480px;margin:0 auto;}
   .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
@@ -76,20 +86,45 @@
   .modal-close{background:var(--amber);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;}
   .guide-group{margin-bottom:14px;}
   .guide-group h3{font-size:13px;color:#d9c497;margin:0 0 6px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px;}
-  .guide-item{background:var(--card);color:var(--ink);border-radius:7px;padding:9px 11px;margin-bottom:6px;font-size:12.5px;line-height:1.7;}
+  .guide-item{background:var(--card);color:var(--ink);border-radius:9px;padding:9px 11px;margin-bottom:6px;font-size:12.5px;line-height:1.7;}
   .guide-item b{display:block;font-size:13px;margin-bottom:2px;}
   .guide-item .gi-treat{color:#5f7a4f;font-weight:700;}
 
-  .next-btn{width:100%;margin-top:12px;padding:13px;border:none;border-radius:9px;background:var(--amber);color:#fff;font-weight:900;font-size:15px;cursor:pointer;}
-  footer{text-align:center;margin-top:18px;font-size:10px;color:#7a8a68;}
+  .authfield{width:100%;padding:11px;border-radius:9px;border:1px solid var(--card-edge);margin-bottom:8px;font-size:14px;background:#fbf7ea;color:var(--ink);}
+  .auth-primary{width:100%;padding:12px;border:none;border-radius:9px;background:var(--amber);color:#fff;font-weight:900;font-size:14px;cursor:pointer;margin-bottom:8px;}
+  .auth-secondary{width:100%;padding:10px;border:1px solid rgba(255,255,255,0.25);border-radius:9px;background:none;color:#e8d9a8;font-size:13px;cursor:pointer;margin-bottom:6px;}
+  .auth-msg{font-size:12px;color:#e0a08a;min-height:16px;margin-bottom:6px;}
+  .auth-toggle{text-align:center;font-size:12px;color:#a9c08f;text-decoration:underline;cursor:pointer;margin-bottom:10px;}
+
+  .next-btn{width:100%;margin-top:12px;padding:13px;border:none;border-radius:11px;background:var(--amber);color:#fff;font-weight:900;font-size:15px;cursor:pointer;}
+  .util-row{display:flex;gap:8px;margin-top:14px;}
+  .util-btn{flex:1;padding:9px;border-radius:9px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#c9d6b8;font-size:11px;cursor:pointer;}
+
+  .search-input{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--card-edge);background:#fbf7ea;color:var(--ink);font-size:14px;margin-bottom:10px;}
+  .browse-item{background:var(--card);color:var(--ink);border-radius:10px;padding:11px 13px;margin-bottom:8px;font-size:12.5px;line-height:1.7;}
+  .browse-item b{display:block;font-size:13.5px;margin-bottom:3px;}
+  .browse-item .bi-crop{color:#8a7d55;font-size:11px;}
+  .browse-item .bi-treat{color:#5f7a4f;font-weight:700;margin-top:4px;display:block;}
+  .browse-item .bi-prevent{color:#2f6b8a;font-weight:700;margin-top:2px;display:block;}
+
+  .quiz-progress{display:flex;justify-content:space-between;font-size:11.5px;color:#d9c497;margin-bottom:8px;}
+  .quiz-result{text-align:center;padding:20px 0;}
+  .quiz-result .big{font-size:42px;font-weight:900;color:var(--gold);}
+
+  footer{text-align:center;margin-top:16px;font-size:9.5px;color:#7a8a68;line-height:1.7;}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="authbar">
+    <span id="auth-status">وضع الضيف — التقدم محفوظ على هذا الجهاز</span>
+    <button id="auth-open-btn">تسجيل الدخول</button>
+  </div>
+
   <header>
-    <div class="eyebrow">OFFLINE CASE BANK</div>
+    <div class="eyebrow">AGRICULTURAL DIAGNOSTIC PLATFORM</div>
     <h1>عيادة المحصول</h1>
-    <p id="bank-count">بنك حالات تشخيصية — يعمل بالكامل بدون إنترنت</p>
+    <p id="bank-count">منصة تشخيص وتدريب زراعي — تعمل بالكامل بدون إنترنت</p>
   </header>
 
   <div class="stats">
@@ -98,32 +133,79 @@
     <div class="stat"><b id="st-seen">0</b><span>من البنك</span></div>
   </div>
   <div class="weak" id="weak-line"></div>
-  <button class="guide-btn" id="guide-btn">💊 دليل المكافحة — المواد الفعالة لكل مرض وآفة</button>
-  <div class="catbar" id="catbar"></div>
+  <div class="badge-row" id="badge-row"></div>
 
-  <div class="card">
-    <div class="illus" id="illus-box"></div>
-    <div class="card-top">
-      <div class="crop-name" id="crop-name">—</div>
-      <div class="meta"><div id="cat-label">فئة</div><div class="lvl" id="lvl-badge">—</div></div>
-    </div>
-    <div class="symptoms" id="symptoms-box"></div>
-    <div class="options" id="options-box"></div>
-    <div class="feedback" id="feedback-box"></div>
+  <div class="tabbar">
+    <button class="tab-btn active" data-tab="train">تدريب</button>
+    <button class="tab-btn" data-tab="quiz">اختبار محاكاة</button>
+    <button class="tab-btn" data-tab="browse">تصفح وبحث</button>
   </div>
-  <button class="next-btn" id="next-btn">الحالة التالية ⟵</button>
-  <footer id="footer-note">الصور توضيحية (SVG) وليست صورًا فوتوغرافية — لتفادي أي مشاكل حقوق نشر وضمان عمل الملف بالكامل دون إنترنت.</footer>
+
+  <button class="guide-btn" id="guide-btn">💊 دليل المكافحة — المواد الفعالة لكل مرض وآفة</button>
+
+  <!-- ===== تبويب التدريب ===== -->
+  <div id="view-train">
+    <div class="catbar" id="catbar"></div>
+    <div class="card">
+      <div class="illus" id="illus-box"></div>
+      <div class="card-top">
+        <div class="crop-name" id="crop-name">—</div>
+        <div class="meta"><div id="cat-label">فئة</div><div class="lvl" id="lvl-badge">—</div></div>
+      </div>
+      <div class="symptoms" id="symptoms-box"></div>
+      <div class="options" id="options-box"></div>
+      <div class="feedback" id="feedback-box"></div>
+    </div>
+    <button class="next-btn" id="next-btn">الحالة التالية ⟵</button>
+    <div class="util-row">
+      <button class="util-btn" id="export-btn">⬇ تصدير تقدمي</button>
+      <button class="util-btn" id="import-btn">⬆ استيراد نسخة</button>
+      <input type="file" id="import-file" accept=".json" style="display:none">
+    </div>
+  </div>
+
+  <!-- ===== تبويب الاختبار ===== -->
+  <div id="view-quiz" style="display:none">
+    <div class="card" id="quiz-card">
+      <p style="font-size:13.5px;line-height:1.8;color:var(--ink);margin:0 0 14px;">اختبار محاكاة من 20 سؤالًا عشوائيًا من كامل البنك، بدون تلميحات، لقياس مستواك الحقيقي.</p>
+      <button class="next-btn" id="quiz-start-btn" style="margin-top:0;">ابدأ الاختبار (20 سؤال)</button>
+    </div>
+  </div>
+
+  <!-- ===== تبويب التصفح والبحث ===== -->
+  <div id="view-browse" style="display:none">
+    <input class="search-input" id="search-input" placeholder="🔍 ابحث باسم المرض أو المحصول...">
+    <div id="browse-list"></div>
+  </div>
+
+  <footer id="footer-note">الرسمة التوضيحية (SVG) تظهر افتراضيًا. أضف صورًا حقيقية داخل مجلد "images" بجانب هذا الملف بنفس الأسماء المطلوبة ليعرضها التطبيق تلقائيًا بدلها.</footer>
 </div>
 
 <div class="modal" id="guide-modal">
   <div class="modal-inner">
-    <div class="modal-head">
-      <h2>دليل المكافحة</h2>
-      <button class="modal-close" id="guide-close">إغلاق ✕</button>
-    </div>
+    <div class="modal-head"><h2>دليل المكافحة</h2><button class="modal-close" id="guide-close">إغلاق ✕</button></div>
     <div id="guide-content"></div>
   </div>
 </div>
+
+<div class="modal" id="auth-modal">
+  <div class="modal-inner">
+    <div class="modal-head"><h2 id="auth-title">تسجيل الدخول</h2><button class="modal-close" id="auth-close">إغلاق ✕</button></div>
+    <div id="auth-form-area">
+      <input class="authfield" id="auth-email" type="email" placeholder="البريد الإلكتروني">
+      <input class="authfield" id="auth-password" type="password" placeholder="كلمة المرور">
+      <div class="auth-msg" id="auth-msg"></div>
+      <button class="auth-primary" id="auth-submit-btn">دخول</button>
+      <div class="auth-toggle" id="auth-toggle-mode">ليس لديك حساب؟ أنشئ حساب جديد</div>
+      <button class="auth-secondary" id="auth-guest-btn">المتابعة كضيف بدون حساب</button>
+    </div>
+    <div id="auth-loggedin-area" style="display:none">
+      <p style="font-size:13px;color:#c9d6b8;text-align:center;">مسجّل الدخول كـ <b id="auth-current-email" style="color:#f2ecd9;"></b></p>
+      <button class="auth-secondary" id="auth-logout-btn">تسجيل الخروج</button>
+    </div>
+  </div>
+</div>
+
 
 <script>
 /* ===================== بيانات المحاصيل ===================== */
@@ -152,51 +234,51 @@ function pick(arr, n, seed){ return seededShuffle(arr, seed).slice(0,n); }
 
 /* ===================== 1) نقص العناصر (عام على كل المحاصيل) ===================== */
 const NUTRIENTS = [
- {name:'نقص الحديد (Fe)', symptom:'اصفرار واضح بين العروق في الأوراق الحديثة (الطرفية) بينما تبقى العروق نفسها خضراء داكنة. يظهر بشكل خاص في الترب الجيرية القلوية.', explain:'هذا النمط (اصفرار بين العروق + على الأوراق الجديدة أولًا) توقيع كلاسيكي لنقص الحديد، لأن الحديد غير قابل لإعادة الانتقال داخل النبات فتظهر الأعراض على النموات الحديثة أولًا.'},
- {name:'نقص النيتروجين (N)', symptom:'اصفرار عام منتظم (غير محصور بين العروق) يبدأ من الأوراق المسنة السفلية ويتقدم تدريجيًا للأعلى، مع ضعف عام في قوة النمو الخضري وصغر حجم الأوراق الجديدة.', explain:'النيتروجين عنصر متحرك داخل النبات، فعند نقصه ينتقل من الأوراق المسنة إلى الحديثة، ما يفسر ظهور الاصفرار العام من الأسفل أولًا.'},
- {name:'نقص البوتاسيوم (K)', symptom:'احتراق واسمرار في حواف الأوراق المسنة يبدأ من الحافة الخارجية ويتقدم للداخل (Scorch)، مع ضعف واضح في مقاومة النبات للجفاف والأمراض وترهل الثمار.', explain:'البوتاسيوم ينظم توازن الماء وإغلاق الثغور، ونقصه يظهر كحرق حافي على الأوراق الأقدم لأنه عنصر متحرك يُسحب منها أولًا.'},
- {name:'نقص المغنيسيوم (Mg)', symptom:'اصفرار بين العروق يبدأ من الأوراق المسنة القاعدية (عكس الحديد تمامًا) وقد يصاحبه احمرار أو بنفسجية عند بعض الأصناف، ويتقدم من أسفل النبات نحو الأعلى.', explain:'المغنيسيوم هو مركز جزيء الكلوروفيل وهو عنصر متحرك، فعند نقصه يُسحب من الأوراق المسنة لصالح الحديثة، فتظهر الأعراض أولًا في الأسفل بعكس الحديد.'},
- {name:'نقص الزنك (Zn)', symptom:'تصغّر ملحوظ في حجم الأوراق الطرفية مع تقارب السلاميات (تعقّد النموات في شكل وردي Rosetting)، مصحوبًا باصفرار بين العروق في الأوراق الحديثة.', explain:'الزنك ضروري لتصنيع هرمونات النمو (الأوكسينات)، ونقصه يوقف استطالة السلاميات فتظهر النموات متقاربة وصغيرة الأوراق (تعقّد).'},
- {name:'نقص الكالسيوم (Ca)', symptom:'تيبّس وتقزّم في قمم النموات الحديثة مع ضعف واضح في الجذور، وقد يظهر تعفن أو تشقق في طرف الثمار الزهري في الأنواع المثمرة.', explain:'الكالسيوم غير متحرك في النبات ولازم لبناء جدران الخلايا، فنقصه يضرب أولًا الأنسجة الحديثة سريعة الانقسام (القمم النامية وأطراف الثمار).'},
- {name:'نقص البورون (B)', symptom:'تشقق في السيقان والأعناق مع سقوط ملحوظ للأزهار وضعف في نسبة العقد (تلقيح ضعيف)، وتشوه أو تصلب في الثمار الناتجة.', explain:'البورون ضروري لنمو أنبوب اللقاح وانقسام الخلايا في الأنسجة الحديثة، فنقصه يضعف التلقيح والعقد ويسبب تشققًا في الأنسجة سريعة النمو.'}
+ {name:'نقص الحديد (Fe)', slug:'fe_deficiency', symptom:'اصفرار واضح بين العروق في الأوراق الحديثة (الطرفية) بينما تبقى العروق نفسها خضراء داكنة. يظهر بشكل خاص في الترب الجيرية القلوية.', explain:'هذا النمط (اصفرار بين العروق + على الأوراق الجديدة أولًا) توقيع كلاسيكي لنقص الحديد، لأن الحديد غير قابل لإعادة الانتقال داخل النبات فتظهر الأعراض على النموات الحديثة أولًا.'},
+ {name:'نقص النيتروجين (N)', slug:'n_deficiency', symptom:'اصفرار عام منتظم (غير محصور بين العروق) يبدأ من الأوراق المسنة السفلية ويتقدم تدريجيًا للأعلى، مع ضعف عام في قوة النمو الخضري وصغر حجم الأوراق الجديدة.', explain:'النيتروجين عنصر متحرك داخل النبات، فعند نقصه ينتقل من الأوراق المسنة إلى الحديثة، ما يفسر ظهور الاصفرار العام من الأسفل أولًا.'},
+ {name:'نقص البوتاسيوم (K)', slug:'k_deficiency', symptom:'احتراق واسمرار في حواف الأوراق المسنة يبدأ من الحافة الخارجية ويتقدم للداخل (Scorch)، مع ضعف واضح في مقاومة النبات للجفاف والأمراض وترهل الثمار.', explain:'البوتاسيوم ينظم توازن الماء وإغلاق الثغور، ونقصه يظهر كحرق حافي على الأوراق الأقدم لأنه عنصر متحرك يُسحب منها أولًا.'},
+ {name:'نقص المغنيسيوم (Mg)', slug:'mg_deficiency', symptom:'اصفرار بين العروق يبدأ من الأوراق المسنة القاعدية (عكس الحديد تمامًا) وقد يصاحبه احمرار أو بنفسجية عند بعض الأصناف، ويتقدم من أسفل النبات نحو الأعلى.', explain:'المغنيسيوم هو مركز جزيء الكلوروفيل وهو عنصر متحرك، فعند نقصه يُسحب من الأوراق المسنة لصالح الحديثة، فتظهر الأعراض أولًا في الأسفل بعكس الحديد.'},
+ {name:'نقص الزنك (Zn)', slug:'zn_deficiency', symptom:'تصغّر ملحوظ في حجم الأوراق الطرفية مع تقارب السلاميات (تعقّد النموات في شكل وردي Rosetting)، مصحوبًا باصفرار بين العروق في الأوراق الحديثة.', explain:'الزنك ضروري لتصنيع هرمونات النمو (الأوكسينات)، ونقصه يوقف استطالة السلاميات فتظهر النموات متقاربة وصغيرة الأوراق (تعقّد).'},
+ {name:'نقص الكالسيوم (Ca)', slug:'ca_deficiency', symptom:'تيبّس وتقزّم في قمم النموات الحديثة مع ضعف واضح في الجذور، وقد يظهر تعفن أو تشقق في طرف الثمار الزهري في الأنواع المثمرة.', explain:'الكالسيوم غير متحرك في النبات ولازم لبناء جدران الخلايا، فنقصه يضرب أولًا الأنسجة الحديثة سريعة الانقسام (القمم النامية وأطراف الثمار).'},
+ {name:'نقص البورون (B)', slug:'b_deficiency', symptom:'تشقق في السيقان والأعناق مع سقوط ملحوظ للأزهار وضعف في نسبة العقد (تلقيح ضعيف)، وتشوه أو تصلب في الثمار الناتجة.', explain:'البورون ضروري لنمو أنبوب اللقاح وانقسام الخلايا في الأنسجة الحديثة، فنقصه يضعف التلقيح والعقد ويسبب تشققًا في الأنسجة سريعة النمو.'}
 ];
 
 /* ===================== 2) أمراض فطرية ===================== */
 const FUNGAL = [
- {name:'البياض الدقيقي', crops:['grape','apple','cucumber','strawberry'], symptom:'طبقة دقيقية بيضاء إلى رمادية تغطي السطحين العلوي والسفلي للأوراق والبراعم، مع تجعد وتقزّم النموات الفتية وتساقطها أحيانًا. ينشط في جو دافئ جاف نهارًا مع رطوبة عالية ليلاً.', explain:'المظهر "الدقيقي" الأبيض الجاف المنتشر على السطحين مع نشاط الجو الدافئ الجاف نهارًا هو العلامة المميزة للبياض الدقيقي، بخلاف البياض الزغبي المرتبط بالرطوبة الممطرة.', treatment:'الكبريت الزراعي رشًا وقائيًا دوريًا، أو مبيد فطري جهازي من مجموعة التريازول عند الإصابة الفعلية، مع تحسين التهوية بين النباتات.'},
- {name:'البياض الزغبي', crops:['grape','cucumber'], symptom:'بقع صفراء زيتية على السطح العلوي للورقة، ويقابلها بالضبط نمو زغبي رمادي إلى بنفسجي على السطح السفلي فقط. ينشط بشدة في الطقس الرطب الممطر.', explain:'وجود النمو الزغبي محصورًا في السطح السفلي فقط مقابل بقعة صفراء علوية، مع ارتباطه بالرطوبة والمطر، يميزه بوضوح عن البياض الدقيقي.', treatment:'مركبات نحاسية (أوكسي كلورو النحاس) وقائيًا، أو مبيد جهازي من مجموعة الميتالاكسيل عند الإصابة، مع تجنب الري العلوي مساءً.'},
- {name:'العفن الرمادي (بوتريتس)', crops:['grape','strawberry','tomato'], symptom:'تعفن طري بني رمادي مع نمو عفن قطني كثيف رمادي اللون يغطي الثمار الناضجة أو الأزهار، يظهر بقوة بعد فترات مطر أو رطوبة عالية مستمرة.', explain:'التعفن الطري المصحوب بنمو قطني رمادي كثيف على الأنسجة الرطبة (الثمار والأزهار تحديدًا) توقيع مميز لفطر البوتريتس.', treatment:'مبيد فطري متخصص ضد البوتريتس (مجموعة الأنيلينوبيريميدين)، مع تقليل كثافة الأوراق حول العناقيد والثمار لتحسين التهوية.'},
- {name:'صدأ الأوراق', crops:['wheat','beans'], symptom:'بثرات صغيرة بارزة برتقالية إلى بنية تتوزع على السطح السفلي غالبًا، وتترك مسحوقًا ملونًا عند فرك الورقة باليد.', explain:'شكل البثرات البارزة مع "المسحوق" الملون الذي يعلق باليد عند اللمس هو العلامة التشخيصية القياسية لأمراض الصدأ.', treatment:'مبيد فطري جهازي من مجموعة التريازول عند ظهور أولى البثرات، مع زراعة أصناف مقاومة عند توفرها كإجراء وقائي أساسي.'},
- {name:'التفحم', crops:['wheat','corn'], symptom:'تحوّل حبيبات السنبلة أو كوز الذرة إلى كتلة سوداء مسحوقية بالكامل بدلًا من الحبوب الطبيعية، مع بقاء الغلاف الخارجي سليمًا في البداية.', explain:'استبدال الحبة بالكامل بكتلة سوداء مسحوقية (بدل بقعة على الورقة) هو ما يميز أمراض التفحم عن باقي الأمراض الفطرية.', treatment:'لا علاج بعد ظهور الأعراض على السنابل؛ الوقاية الوحيدة الفعالة معاملة البذور قبل الزراعة بمطهر فطري جهازي مخصص للبذار.'},
- {name:'اللفحة المتأخرة', crops:['potato','tomato'], symptom:'بقع بنية مائية غير منتظمة الحواف تتوسع بسرعة كبيرة خلال أيام، مع نمو أبيض خفيف على حافة البقعة السفلية في الجو الرطب، وتعفن فيما بعد بالدرنات أو الثمار.', explain:'السرعة الفائقة في انتشار البقع مع النمو الأبيض على الحافة السفلية في الرطوبة هما ما يميزان اللفحة المتأخرة عن المبكرة الأبطأ والأكثر انتظامًا.', treatment:'مبيد نحاسي وقائي أو مركب جهازي من مجموعة الماكوزيب فور ظهور الجو الرطب المناسب، مع إزالة النباتات المصابة فورًا لمنع الانتشار.'},
- {name:'اللفحة المبكرة', crops:['potato','tomato','eggplant'], symptom:'بقع بنية دائرية منتظمة تحمل حلقات متحدة المركز (بشكل يشبه الهدف)، تبدأ من الأوراق المسنة السفلية أولًا وتتقدم ببطء نسبي.', explain:'الحلقات المتحدة المركز الواضحة (شكل الهدف) بالإضافة لبدء الإصابة من الأوراق المسنة هما العلامة المميزة للفحة المبكرة.', treatment:'مبيد من مجموعة الماكوزيب أو الكلوروثالونيل رشًا وقائيًا دوريًا خلال موسم الرطوبة.'},
- {name:'عين الطاووس', crops:['olive'], symptom:'بقع دائرية بنية إلى سوداء محاطة بهالة صفراء واضحة على السطح العلوي للورقة، تتسبب في تساقط أوراق شديد خلال الشتاء الرطب.', explain:'الهالة الصفراء المحيطة بالبقعة الداكنة (تشبه شكل ريشة الطاووس) هي العلامة المميزة لهذا المرض الخاص بالزيتون.', treatment:'رشة نحاسية وقائية (مزيج بوردو) في الخريف قبل بدء موسم الأمطار.'},
- {name:'عفن الذبول (فيرتيسيليوم)', crops:['eggplant','pepper','strawberry'], symptom:'ذبول تدريجي أحادي الجانب في النبات مصحوب باصفرار الأوراق السفلية، وعند قطع الساق طوليًا يظهر تلوّن بني داخلي واضح في الأنسجة الوعائية.', explain:'التلوّن البني الداخلي في الأوعية عند القطع، مع الذبول الأحادي الجانب، دليل قاطع على انسداد الأوعية بفطريات الذبول وليس نقص ري عادي.', treatment:'لا يوجد علاج كيميائي فعّال بعد ظهور الإصابة؛ الوقاية عبر الدورة الزراعية وتعقيم التربة بالتشميس الشمسي قبل الزراعة.'},
- {name:'الأنثراكنوز', crops:['beans','pepper','almond'], symptom:'بقع غائرة داكنة اللون على القرون أو الثمار وأحيانًا السيقان، بمركز فاتح اللون تتوسطه نقاط سوداء دقيقة جدًا (أجسام إثمارية للفطر).', explain:'البقع الغائرة (وليست بارزة) مع النقاط السوداء الدقيقة في مركزها الفاتح هي العلامة المميزة لمرض الأنثراكنوز.', treatment:'مبيد من مجموعة الماكوزيب أو مركب نحاسي، مع إزالة وإتلاف القرون والثمار المصابة فورًا.'},
- {name:'تجعد أوراق الخوخ', crops:['peach','apricot'], symptom:'تجعد وتشوه وسماكة ملحوظة في الأوراق الفتية خلال الربيع، مع تحول لونها إلى أحمر أو أرجواني بدلًا من الأخضر الطبيعي.', explain:'التشوه والسماكة غير الطبيعية مع التلون الأحمر الأرجواني في الربيع تحديدًا هي بصمة مرض تجعد الأوراق عند اللوزيات ذات النواة.', treatment:'رشة نحاسية وقائية في نهاية السكون الشتوي قبل انتفاخ البراعم مباشرة؛ الرش بعد ظهور الأعراض غير مجدٍ.'},
- {name:'تبقع قشرة الرمان', crops:['pomegranate'], symptom:'بقع بنية غائرة على قشرة الثمرة تتوسع تدريجيًا وتتشقق مع اقتراب النضج، مصحوبة أحيانًا بتعفن داخلي للحبوب.', explain:'البقع الغائرة المتوسعة على القشرة تحديدًا مع اقتراب النضج، مع تشقق القشرة، تميز هذا المرض عن أضرار الحشرات السطحية.', treatment:'مبيد نحاسي وقائي مع تحسين تهوية الأشجار عبر التقليم لتقليل الرطوبة الداخلية.'},
- {name:'جرب التفاح', crops:['apple'], symptom:'بقع خشنة الملمس بلون زيتوني إلى بني على الأوراق والثمار، مع تشقق واضح في قشرة الثمرة المصابة وتشوه في شكلها.', explain:'الملمس الخشن المميز للبقع مع التشقق السطحي في القشرة هو التوقيع الكلاسيكي لجرب التفاح.', treatment:'مبيد من مجموعة الكابتان أو التريازول رشًا وقائيًا من بداية تفتح البراعم وحتى ما بعد العقد.'},
- {name:'صدأ/عفن أوراق التين', crops:['fig'], symptom:'بقع صفراء إلى بنية صغيرة متعددة منتشرة على السطح السفلي للأوراق، تتحول تدريجيًا إلى بنية داكنة مع تساقط مبكر وشديد للأوراق.', explain:'كثرة البقع الصغيرة المحصورة بالسطح السفلي مع التساقط المبكر الشديد يميز هذا المرض عن أضرار العناكب أو نقص العناصر.', treatment:'مركب نحاسي وقائي مع جمع وإتلاف الأوراق المتساقطة لمنع تراكم مصدر العدوى.'},
- {name:'موت الطرفيات (تقرح اللوز)', crops:['almond'], symptom:'تقرحات على الأغصان الفتية مع خروج مادة صمغية من الشقوق، وذبول مفاجئ للأزهار والبراعم الطرفية دون سبب ظاهر آخر.', explain:'التقرح الفعلي في الغصن مصحوبًا بموت مفاجئ للطرف يميز هذه الإصابة الفطرية عن التصمغ الفسيولوجي البسيط الخالي من التقرح.', treatment:'تقليم وإحراق الأجزاء المصابة فورًا، مع رشة نحاسية وقائية بعد كل عملية تقليم.'}
+ {name:'البياض الدقيقي', slug:'powdery_mildew', crops:['grape','apple','cucumber','strawberry'], symptom:'طبقة دقيقية بيضاء إلى رمادية تغطي السطحين العلوي والسفلي للأوراق والبراعم، مع تجعد وتقزّم النموات الفتية وتساقطها أحيانًا. ينشط في جو دافئ جاف نهارًا مع رطوبة عالية ليلاً.', explain:'المظهر "الدقيقي" الأبيض الجاف المنتشر على السطحين مع نشاط الجو الدافئ الجاف نهارًا هو العلامة المميزة للبياض الدقيقي، بخلاف البياض الزغبي المرتبط بالرطوبة الممطرة.', treatment:'الكبريت الزراعي رشًا وقائيًا دوريًا، أو مبيد فطري جهازي من مجموعة التريازول عند الإصابة الفعلية، مع تحسين التهوية بين النباتات.'},
+ {name:'البياض الزغبي', slug:'downy_mildew', crops:['grape','cucumber'], symptom:'بقع صفراء زيتية على السطح العلوي للورقة، ويقابلها بالضبط نمو زغبي رمادي إلى بنفسجي على السطح السفلي فقط. ينشط بشدة في الطقس الرطب الممطر.', explain:'وجود النمو الزغبي محصورًا في السطح السفلي فقط مقابل بقعة صفراء علوية، مع ارتباطه بالرطوبة والمطر، يميزه بوضوح عن البياض الدقيقي.', treatment:'مركبات نحاسية (أوكسي كلورو النحاس) وقائيًا، أو مبيد جهازي من مجموعة الميتالاكسيل عند الإصابة، مع تجنب الري العلوي مساءً.'},
+ {name:'العفن الرمادي (بوتريتس)', slug:'botrytis', crops:['grape','strawberry','tomato'], symptom:'تعفن طري بني رمادي مع نمو عفن قطني كثيف رمادي اللون يغطي الثمار الناضجة أو الأزهار، يظهر بقوة بعد فترات مطر أو رطوبة عالية مستمرة.', explain:'التعفن الطري المصحوب بنمو قطني رمادي كثيف على الأنسجة الرطبة (الثمار والأزهار تحديدًا) توقيع مميز لفطر البوتريتس.', treatment:'مبيد فطري متخصص ضد البوتريتس (مجموعة الأنيلينوبيريميدين)، مع تقليل كثافة الأوراق حول العناقيد والثمار لتحسين التهوية.'},
+ {name:'صدأ الأوراق', slug:'leaf_rust', crops:['wheat','beans'], symptom:'بثرات صغيرة بارزة برتقالية إلى بنية تتوزع على السطح السفلي غالبًا، وتترك مسحوقًا ملونًا عند فرك الورقة باليد.', explain:'شكل البثرات البارزة مع "المسحوق" الملون الذي يعلق باليد عند اللمس هو العلامة التشخيصية القياسية لأمراض الصدأ.', treatment:'مبيد فطري جهازي من مجموعة التريازول عند ظهور أولى البثرات، مع زراعة أصناف مقاومة عند توفرها كإجراء وقائي أساسي.'},
+ {name:'التفحم', slug:'smut', crops:['wheat','corn'], symptom:'تحوّل حبيبات السنبلة أو كوز الذرة إلى كتلة سوداء مسحوقية بالكامل بدلًا من الحبوب الطبيعية، مع بقاء الغلاف الخارجي سليمًا في البداية.', explain:'استبدال الحبة بالكامل بكتلة سوداء مسحوقية (بدل بقعة على الورقة) هو ما يميز أمراض التفحم عن باقي الأمراض الفطرية.', treatment:'لا علاج بعد ظهور الأعراض على السنابل؛ الوقاية الوحيدة الفعالة معاملة البذور قبل الزراعة بمطهر فطري جهازي مخصص للبذار.'},
+ {name:'اللفحة المتأخرة', slug:'late_blight', crops:['potato','tomato'], symptom:'بقع بنية مائية غير منتظمة الحواف تتوسع بسرعة كبيرة خلال أيام، مع نمو أبيض خفيف على حافة البقعة السفلية في الجو الرطب، وتعفن فيما بعد بالدرنات أو الثمار.', explain:'السرعة الفائقة في انتشار البقع مع النمو الأبيض على الحافة السفلية في الرطوبة هما ما يميزان اللفحة المتأخرة عن المبكرة الأبطأ والأكثر انتظامًا.', treatment:'مبيد نحاسي وقائي أو مركب جهازي من مجموعة الماكوزيب فور ظهور الجو الرطب المناسب، مع إزالة النباتات المصابة فورًا لمنع الانتشار.'},
+ {name:'اللفحة المبكرة', slug:'early_blight', crops:['potato','tomato','eggplant'], symptom:'بقع بنية دائرية منتظمة تحمل حلقات متحدة المركز (بشكل يشبه الهدف)، تبدأ من الأوراق المسنة السفلية أولًا وتتقدم ببطء نسبي.', explain:'الحلقات المتحدة المركز الواضحة (شكل الهدف) بالإضافة لبدء الإصابة من الأوراق المسنة هما العلامة المميزة للفحة المبكرة.', treatment:'مبيد من مجموعة الماكوزيب أو الكلوروثالونيل رشًا وقائيًا دوريًا خلال موسم الرطوبة.'},
+ {name:'عين الطاووس', slug:'peacock_spot', crops:['olive'], symptom:'بقع دائرية بنية إلى سوداء محاطة بهالة صفراء واضحة على السطح العلوي للورقة، تتسبب في تساقط أوراق شديد خلال الشتاء الرطب.', explain:'الهالة الصفراء المحيطة بالبقعة الداكنة (تشبه شكل ريشة الطاووس) هي العلامة المميزة لهذا المرض الخاص بالزيتون.', treatment:'رشة نحاسية وقائية (مزيج بوردو) في الخريف قبل بدء موسم الأمطار.'},
+ {name:'عفن الذبول (فيرتيسيليوم)', slug:'verticillium_wilt', crops:['eggplant','pepper','strawberry'], symptom:'ذبول تدريجي أحادي الجانب في النبات مصحوب باصفرار الأوراق السفلية، وعند قطع الساق طوليًا يظهر تلوّن بني داخلي واضح في الأنسجة الوعائية.', explain:'التلوّن البني الداخلي في الأوعية عند القطع، مع الذبول الأحادي الجانب، دليل قاطع على انسداد الأوعية بفطريات الذبول وليس نقص ري عادي.', treatment:'لا يوجد علاج كيميائي فعّال بعد ظهور الإصابة؛ الوقاية عبر الدورة الزراعية وتعقيم التربة بالتشميس الشمسي قبل الزراعة.'},
+ {name:'الأنثراكنوز', slug:'anthracnose', crops:['beans','pepper','almond'], symptom:'بقع غائرة داكنة اللون على القرون أو الثمار وأحيانًا السيقان، بمركز فاتح اللون تتوسطه نقاط سوداء دقيقة جدًا (أجسام إثمارية للفطر).', explain:'البقع الغائرة (وليست بارزة) مع النقاط السوداء الدقيقة في مركزها الفاتح هي العلامة المميزة لمرض الأنثراكنوز.', treatment:'مبيد من مجموعة الماكوزيب أو مركب نحاسي، مع إزالة وإتلاف القرون والثمار المصابة فورًا.'},
+ {name:'تجعد أوراق الخوخ', slug:'peach_leaf_curl', crops:['peach','apricot'], symptom:'تجعد وتشوه وسماكة ملحوظة في الأوراق الفتية خلال الربيع، مع تحول لونها إلى أحمر أو أرجواني بدلًا من الأخضر الطبيعي.', explain:'التشوه والسماكة غير الطبيعية مع التلون الأحمر الأرجواني في الربيع تحديدًا هي بصمة مرض تجعد الأوراق عند اللوزيات ذات النواة.', treatment:'رشة نحاسية وقائية في نهاية السكون الشتوي قبل انتفاخ البراعم مباشرة؛ الرش بعد ظهور الأعراض غير مجدٍ.'},
+ {name:'تبقع قشرة الرمان', slug:'pomegranate_spot', crops:['pomegranate'], symptom:'بقع بنية غائرة على قشرة الثمرة تتوسع تدريجيًا وتتشقق مع اقتراب النضج، مصحوبة أحيانًا بتعفن داخلي للحبوب.', explain:'البقع الغائرة المتوسعة على القشرة تحديدًا مع اقتراب النضج، مع تشقق القشرة، تميز هذا المرض عن أضرار الحشرات السطحية.', treatment:'مبيد نحاسي وقائي مع تحسين تهوية الأشجار عبر التقليم لتقليل الرطوبة الداخلية.'},
+ {name:'جرب التفاح', slug:'apple_scab', crops:['apple'], symptom:'بقع خشنة الملمس بلون زيتوني إلى بني على الأوراق والثمار، مع تشقق واضح في قشرة الثمرة المصابة وتشوه في شكلها.', explain:'الملمس الخشن المميز للبقع مع التشقق السطحي في القشرة هو التوقيع الكلاسيكي لجرب التفاح.', treatment:'مبيد من مجموعة الكابتان أو التريازول رشًا وقائيًا من بداية تفتح البراعم وحتى ما بعد العقد.'},
+ {name:'صدأ/عفن أوراق التين', slug:'fig_rust', crops:['fig'], symptom:'بقع صفراء إلى بنية صغيرة متعددة منتشرة على السطح السفلي للأوراق، تتحول تدريجيًا إلى بنية داكنة مع تساقط مبكر وشديد للأوراق.', explain:'كثرة البقع الصغيرة المحصورة بالسطح السفلي مع التساقط المبكر الشديد يميز هذا المرض عن أضرار العناكب أو نقص العناصر.', treatment:'مركب نحاسي وقائي مع جمع وإتلاف الأوراق المتساقطة لمنع تراكم مصدر العدوى.'},
+ {name:'موت الطرفيات (تقرح اللوز)', slug:'almond_canker', crops:['almond'], symptom:'تقرحات على الأغصان الفتية مع خروج مادة صمغية من الشقوق، وذبول مفاجئ للأزهار والبراعم الطرفية دون سبب ظاهر آخر.', explain:'التقرح الفعلي في الغصن مصحوبًا بموت مفاجئ للطرف يميز هذه الإصابة الفطرية عن التصمغ الفسيولوجي البسيط الخالي من التقرح.', treatment:'تقليم وإحراق الأجزاء المصابة فورًا، مع رشة نحاسية وقائية بعد كل عملية تقليم.'}
 ];
 
 /* ===================== 3) آفات حشرية ===================== */
 const PESTS = [
- {name:'المن', crops:['citrus','cucumber','pepper','wheat','beans'], symptom:'تجمعات كثيفة من حشرات صغيرة خضراء أو سوداء على السطح السفلي للأوراق والبراعم الطرفية، مع تجعد وتشوه الأوراق وإفراز مادة لزجة (ندوة عسلية) قد ينمو عليها عفن أسود لاحقًا.', explain:'التجمعات الحشرية الظاهرة بالعين مع الندوة العسلية اللزجة والعفن الأسود المرافق هي العلامة الأكثر وضوحًا للتفريق بين المن وأي اصفرار مرضي أو غذائي.', treatment:'مبيد جهازي من مجموعة النيونيكوتينويد أو صابون مبيد حشري عند الإصابات المحدودة، مع إطلاق أو تشجيع أسد المن كمكافحة حيوية.'},
- {name:'الذبابة البيضاء', crops:['tomato','eggplant','cucumber'], symptom:'سرب من حشرات بيضاء صغيرة تتطاير فور تحريك النبات، مع اصفرار الأوراق ونمو عفن أسود على الندوة العسلية المرافقة، وأحيانًا أعراض فيروسية كتجعد الأوراق.', explain:'التطاير الجماعي الفوري عند لمس النبات هو أوضح علامة ميدانية تميز الذبابة البيضاء عن باقي الحشرات الماصة.', treatment:'مصائد صفراء لاصقة للرصد والحد من الأعداد، مع مبيد متخصص من مجموعة السبيروتيترامات عند الإصابة الشديدة والمكافحة الحيوية بطفيليات متخصصة.'},
- {name:'حفار أوراق وثمار البندورة', crops:['tomato'], symptom:'أنفاق بيضاء متعرجة داخل نسيج الورقة، مع ثقوب دخول صغيرة في الثمار يظهر حولها براز الحشرة الأسود من الداخل.', explain:'الأنفاق المتعرجة داخل نسيج الورقة نفسها (وليس على سطحها) هي العلامة المميزة لهذه الحشرة القارضة الدقيقة.', treatment:'مصائد فرمونية للرصد المبكر، مع مبيد حيوي من بكتيريا الباسيلس ثورنجينسيس (Bt) أو مبيد Spinosad عند بداية الإصابة.'},
- {name:'دودة درنات البطاطا', crops:['potato'], symptom:'ثقوب وأنفاق داخلية في الدرنات نفسها مع وجود يرقات صغيرة بداخلها، مصحوبة بذبول جزئي خفيف للنبات فوق سطح التربة.', explain:'الإصابة الداخلية في الدرنة تحديدًا (وليس فقط على الأوراق) هي ما يميز هذه الآفة عن باقي حشرات البطاطا السطحية.', treatment:'تعميق التربة فوق الدرنات لمنع وصول الفراشة إليها، مع مبيد حيوي (Bt) وقت ذروة نشاط الفراشات ووضع البيض.'},
- {name:'حفار ساق الذرة', crops:['corn'], symptom:'ثقوب دائرية واضحة في السيقان والأوراق مع وجود نشارة بنية (فضلات الحشرة) عند الثقوب، وقد ينكسر النبات عند موقع الإصابة.', explain:'وجود النشارة البنية عند الثقوب في الساق نفسه دليل واضح على حفر داخلي وليس مجرد قرض سطحي للأوراق.', treatment:'مبيد حبيبي من الباسيلس ثورنجينسيس (Bt) يوضع في قمة النبات وقت ظهور اليرقات الصغيرة قبل دخولها الساق.'},
- {name:'سونة الحبوب', crops:['wheat'], symptom:'بقع بيضاء منتفخة حول موقع لسع الحبة الواحدة، مع تدهور واضح في جودة الطحين ومرونة العجين الناتج عن هذه الحبوب لاحقًا.', explain:'أثر اللسعة الموضعي على الحبة الواحدة مع تأثيره الكيميائي على جودة الطحين هو ما يميز هذه الآفة عن أمراض السنابل الفطرية.', treatment:'المكافحة تُوجَّه لمرحلة الحوريات الصغيرة قبل اكتمال نموها، وفق توصية جهة الإرشاد الزراعي المحلية بخصوص المبيد ومناسبة التوقيت.'},
- {name:'فراشة ثمار التفاح', crops:['apple'], symptom:'ثقب دخول صغير في قشرة الثمرة محاط بنشارة بنية، مع نفق داخلي يصل حتى بذور الثمرة وتساقط مبكر للثمار المصابة.', explain:'النفق الداخلي الذي يصل تحديدًا إلى منطقة البذور هو العلامة المميزة لهذه الآفة عن باقي حشرات ثقب الثمار.', treatment:'مصائد فرمونية للرصد وتحديد توقيت الفقس، مع مبيد Spinosad أو مماثل يُطبَّق عند بداية فقس البيض قبل دخول اليرقة للثمرة.'},
- {name:'ذبابة ثمار الفاكهة', crops:['peach','apricot','fig','pomegranate'], symptom:'نقاط لسع داكنة صغيرة على قشرة الثمرة، يتبعها تعفن داخلي طري حول موقع اللسع مع وجود يرقات بيضاء صغيرة بالداخل عند الفحص.', explain:'التعفن الداخلي الطري الذي يبدأ من نقطة لسع سطحية صغيرة جدًا هو ما يميز إصابة ذبابة الفاكهة عن الأمراض الفطرية المباشرة.', treatment:'مصائد غذائية جاذبة (طُعم بروتيني) للرصد والحد من الأعداد، مع رش جزئي بطُعم سام بدل رش الشجرة كاملة.'},
- {name:'دودة أوراق العنب', crops:['grape'], symptom:'التفاف وأكل حواف الأوراق مع وجود لفائف حريرية تجمع عدة أوراق مع بعضها، وأحيانًا ثقوب داخل حبات العنقود قبل النضج.', explain:'اللفائف الحريرية التي تربط الأوراق ببعضها هي العلامة الميدانية الأوضح لهذه الآفة على الكرمة.', treatment:'مبيد حيوي (Bt) عند ظهور اليرقات الصغيرة، مع إزالة اللفائف الورقية يدويًا لتقليل الأعداد دون الحاجة لرش كامل.'},
- {name:'العنكبوت الأحمر', crops:['cucumber','eggplant','almond','strawberry'], symptom:'نقاط صفراء دقيقة متناثرة على السطح العلوي للأوراق (بقع تغذية)، مع خيوط عنكبوتية دقيقة جدًا على السطح السفلي عند اشتداد الإصابة وجفاف الأوراق تدريجيًا.', explain:'وجود الخيوط العنكبوتية الدقيقة على السطح السفلي هو الدليل الحاسم الذي يميز إصابة العنكبوت الأحمر عن أي اصفرار غذائي مشابه بالمظهر الأولي.', treatment:'مبيد أكاروسي متخصص (ليس مبيدًا حشريًا عاديًا، لأن المبيدات الحشرية العامة قد تقتل أعداءه الحيوية وتزيد انتشاره).'},
- {name:'البق الدقيقي', crops:['citrus','grape','fig'], symptom:'كتل قطنية بيضاء واضحة عند إبط الأوراق وعلى العناقيد، مع إفراز ندوة عسلية ونمو عفن أسود مرافق لها.', explain:'المظهر القطني الأبيض المتكتل تحديدًا عند الإبط والعناقيد هو العلامة المميزة للبق الدقيقي عن باقي الحشرات القشرية.', treatment:'زيت معدني بستاني يخنق الحشرة في الإصابات الخفيفة، ومبيد جهازي من مجموعة النيونيكوتينويد للإصابات الشديدة.'},
- {name:'دودة القطن/الأشطاء الليلية', crops:['beans','corn'], symptom:'قطع كامل للنبات الفتي عند مستوى سطح التربة أثناء الليل، مع اختفاء الشتلات صباحًا دون أي أثر واضح للحفر أو المرض حولها.', explain:'القطع الكامل المفاجئ عند سطح التربة ليلًا تحديدًا هو التوقيع المميز لهذه اليرقات الليلية القارضة.', treatment:'طُعم سام (نخالة مضافة إليها مبيد حيوي Bt) يوضع مساءً حول قواعد الشتلات مباشرة قبل نشاط اليرقات الليلي.'},
- {name:'حفار ساق الزيتون', crops:['olive'], symptom:'أنفاق داخل الأغصان والجذع مع نشارة خشبية واضحة عند فتحات الدخول، وذبول تدريجي لأطراف الأغصان المصابة.', explain:'وجود النشارة الخشبية عند فتحات دخول واضحة في الجذع نفسه يميز هذه الآفة عن أضرار الجفاف أو الأمراض الورقية.', treatment:'إزالة وحرق الأغصان المصابة فورًا، مع مصائد فرمونية للرصد المبكر قبل انتشار الإصابة لبقية الأشجار.'},
- {name:'صانعة أنفاق أوراق الحمضيات', crops:['citrus'], symptom:'أنفاق فضية رفيعة ومتعرجة داخل نسيج الورقة الفتية فقط، مع تجعد وتقوس واضح للورقة حول مسار النفق.', explain:'الأنفاق الفضية الرفيعة المحصورة بالأوراق الفتية فقط هي العلامة المميزة لهذه الحشرة الصغيرة جدًا.', treatment:'زيت معدني بستاني رشًا على النموات الحديثة، مع تجنب الإفراط بالتسميد النيتروجيني الذي يحفز نموًا غضًا جاذبًا للحشرة.'},
- {name:'فيلوكسرا العنب', crops:['grape'], symptom:'تورمات عقدية صغيرة (galls) تظهر على الجذور أو على السطح السفلي لبعض الأوراق، مع ضعف عام وتدريجي في نمو الكرمة دون سبب مرضي ظاهر بالأعلى.', explain:'التورمات العقدية الغريبة (galls) على الجذور تحديدًا هي العلامة الفارقة لهذه الآفة الخطيرة على الكرمة.', treatment:'لا يوجد علاج كيميائي فعّال على الجذور المصابة؛ الحل الأساسي عالميًا هو التطعيم على أصول كرمة مقاومة (Rootstocks).'}
+ {name:'المن', slug:'aphids', crops:['citrus','cucumber','pepper','wheat','beans'], symptom:'تجمعات كثيفة من حشرات صغيرة خضراء أو سوداء على السطح السفلي للأوراق والبراعم الطرفية، مع تجعد وتشوه الأوراق وإفراز مادة لزجة (ندوة عسلية) قد ينمو عليها عفن أسود لاحقًا.', explain:'التجمعات الحشرية الظاهرة بالعين مع الندوة العسلية اللزجة والعفن الأسود المرافق هي العلامة الأكثر وضوحًا للتفريق بين المن وأي اصفرار مرضي أو غذائي.', treatment:'مبيد جهازي من مجموعة النيونيكوتينويد أو صابون مبيد حشري عند الإصابات المحدودة، مع إطلاق أو تشجيع أسد المن كمكافحة حيوية.'},
+ {name:'الذبابة البيضاء', slug:'whitefly', crops:['tomato','eggplant','cucumber'], symptom:'سرب من حشرات بيضاء صغيرة تتطاير فور تحريك النبات، مع اصفرار الأوراق ونمو عفن أسود على الندوة العسلية المرافقة، وأحيانًا أعراض فيروسية كتجعد الأوراق.', explain:'التطاير الجماعي الفوري عند لمس النبات هو أوضح علامة ميدانية تميز الذبابة البيضاء عن باقي الحشرات الماصة.', treatment:'مصائد صفراء لاصقة للرصد والحد من الأعداد، مع مبيد متخصص من مجموعة السبيروتيترامات عند الإصابة الشديدة والمكافحة الحيوية بطفيليات متخصصة.'},
+ {name:'حفار أوراق وثمار البندورة', slug:'tuta_absoluta', crops:['tomato'], symptom:'أنفاق بيضاء متعرجة داخل نسيج الورقة، مع ثقوب دخول صغيرة في الثمار يظهر حولها براز الحشرة الأسود من الداخل.', explain:'الأنفاق المتعرجة داخل نسيج الورقة نفسها (وليس على سطحها) هي العلامة المميزة لهذه الحشرة القارضة الدقيقة.', treatment:'مصائد فرمونية للرصد المبكر، مع مبيد حيوي من بكتيريا الباسيلس ثورنجينسيس (Bt) أو مبيد Spinosad عند بداية الإصابة.'},
+ {name:'دودة درنات البطاطا', slug:'potato_tuber_moth', crops:['potato'], symptom:'ثقوب وأنفاق داخلية في الدرنات نفسها مع وجود يرقات صغيرة بداخلها، مصحوبة بذبول جزئي خفيف للنبات فوق سطح التربة.', explain:'الإصابة الداخلية في الدرنة تحديدًا (وليس فقط على الأوراق) هي ما يميز هذه الآفة عن باقي حشرات البطاطا السطحية.', treatment:'تعميق التربة فوق الدرنات لمنع وصول الفراشة إليها، مع مبيد حيوي (Bt) وقت ذروة نشاط الفراشات ووضع البيض.'},
+ {name:'حفار ساق الذرة', slug:'corn_borer', crops:['corn'], symptom:'ثقوب دائرية واضحة في السيقان والأوراق مع وجود نشارة بنية (فضلات الحشرة) عند الثقوب، وقد ينكسر النبات عند موقع الإصابة.', explain:'وجود النشارة البنية عند الثقوب في الساق نفسه دليل واضح على حفر داخلي وليس مجرد قرض سطحي للأوراق.', treatment:'مبيد حبيبي من الباسيلس ثورنجينسيس (Bt) يوضع في قمة النبات وقت ظهور اليرقات الصغيرة قبل دخولها الساق.'},
+ {name:'سونة الحبوب', slug:'sunn_pest', crops:['wheat'], symptom:'بقع بيضاء منتفخة حول موقع لسع الحبة الواحدة، مع تدهور واضح في جودة الطحين ومرونة العجين الناتج عن هذه الحبوب لاحقًا.', explain:'أثر اللسعة الموضعي على الحبة الواحدة مع تأثيره الكيميائي على جودة الطحين هو ما يميز هذه الآفة عن أمراض السنابل الفطرية.', treatment:'المكافحة تُوجَّه لمرحلة الحوريات الصغيرة قبل اكتمال نموها، وفق توصية جهة الإرشاد الزراعي المحلية بخصوص المبيد ومناسبة التوقيت.'},
+ {name:'فراشة ثمار التفاح', slug:'codling_moth', crops:['apple'], symptom:'ثقب دخول صغير في قشرة الثمرة محاط بنشارة بنية، مع نفق داخلي يصل حتى بذور الثمرة وتساقط مبكر للثمار المصابة.', explain:'النفق الداخلي الذي يصل تحديدًا إلى منطقة البذور هو العلامة المميزة لهذه الآفة عن باقي حشرات ثقب الثمار.', treatment:'مصائد فرمونية للرصد وتحديد توقيت الفقس، مع مبيد Spinosad أو مماثل يُطبَّق عند بداية فقس البيض قبل دخول اليرقة للثمرة.'},
+ {name:'ذبابة ثمار الفاكهة', slug:'fruit_fly', crops:['peach','apricot','fig','pomegranate'], symptom:'نقاط لسع داكنة صغيرة على قشرة الثمرة، يتبعها تعفن داخلي طري حول موقع اللسع مع وجود يرقات بيضاء صغيرة بالداخل عند الفحص.', explain:'التعفن الداخلي الطري الذي يبدأ من نقطة لسع سطحية صغيرة جدًا هو ما يميز إصابة ذبابة الفاكهة عن الأمراض الفطرية المباشرة.', treatment:'مصائد غذائية جاذبة (طُعم بروتيني) للرصد والحد من الأعداد، مع رش جزئي بطُعم سام بدل رش الشجرة كاملة.'},
+ {name:'دودة أوراق العنب', slug:'grape_leafroller', crops:['grape'], symptom:'التفاف وأكل حواف الأوراق مع وجود لفائف حريرية تجمع عدة أوراق مع بعضها، وأحيانًا ثقوب داخل حبات العنقود قبل النضج.', explain:'اللفائف الحريرية التي تربط الأوراق ببعضها هي العلامة الميدانية الأوضح لهذه الآفة على الكرمة.', treatment:'مبيد حيوي (Bt) عند ظهور اليرقات الصغيرة، مع إزالة اللفائف الورقية يدويًا لتقليل الأعداد دون الحاجة لرش كامل.'},
+ {name:'العنكبوت الأحمر', slug:'spider_mites', crops:['cucumber','eggplant','almond','strawberry'], symptom:'نقاط صفراء دقيقة متناثرة على السطح العلوي للأوراق (بقع تغذية)، مع خيوط عنكبوتية دقيقة جدًا على السطح السفلي عند اشتداد الإصابة وجفاف الأوراق تدريجيًا.', explain:'وجود الخيوط العنكبوتية الدقيقة على السطح السفلي هو الدليل الحاسم الذي يميز إصابة العنكبوت الأحمر عن أي اصفرار غذائي مشابه بالمظهر الأولي.', treatment:'مبيد أكاروسي متخصص (ليس مبيدًا حشريًا عاديًا، لأن المبيدات الحشرية العامة قد تقتل أعداءه الحيوية وتزيد انتشاره).'},
+ {name:'البق الدقيقي', slug:'mealybug', crops:['citrus','grape','fig'], symptom:'كتل قطنية بيضاء واضحة عند إبط الأوراق وعلى العناقيد، مع إفراز ندوة عسلية ونمو عفن أسود مرافق لها.', explain:'المظهر القطني الأبيض المتكتل تحديدًا عند الإبط والعناقيد هو العلامة المميزة للبق الدقيقي عن باقي الحشرات القشرية.', treatment:'زيت معدني بستاني يخنق الحشرة في الإصابات الخفيفة، ومبيد جهازي من مجموعة النيونيكوتينويد للإصابات الشديدة.'},
+ {name:'دودة القطن/الأشطاء الليلية', slug:'cutworm', crops:['beans','corn'], symptom:'قطع كامل للنبات الفتي عند مستوى سطح التربة أثناء الليل، مع اختفاء الشتلات صباحًا دون أي أثر واضح للحفر أو المرض حولها.', explain:'القطع الكامل المفاجئ عند سطح التربة ليلًا تحديدًا هو التوقيع المميز لهذه اليرقات الليلية القارضة.', treatment:'طُعم سام (نخالة مضافة إليها مبيد حيوي Bt) يوضع مساءً حول قواعد الشتلات مباشرة قبل نشاط اليرقات الليلي.'},
+ {name:'حفار ساق الزيتون', slug:'olive_borer', crops:['olive'], symptom:'أنفاق داخل الأغصان والجذع مع نشارة خشبية واضحة عند فتحات الدخول، وذبول تدريجي لأطراف الأغصان المصابة.', explain:'وجود النشارة الخشبية عند فتحات دخول واضحة في الجذع نفسه يميز هذه الآفة عن أضرار الجفاف أو الأمراض الورقية.', treatment:'إزالة وحرق الأغصان المصابة فورًا، مع مصائد فرمونية للرصد المبكر قبل انتشار الإصابة لبقية الأشجار.'},
+ {name:'صانعة أنفاق أوراق الحمضيات', slug:'citrus_leafminer', crops:['citrus'], symptom:'أنفاق فضية رفيعة ومتعرجة داخل نسيج الورقة الفتية فقط، مع تجعد وتقوس واضح للورقة حول مسار النفق.', explain:'الأنفاق الفضية الرفيعة المحصورة بالأوراق الفتية فقط هي العلامة المميزة لهذه الحشرة الصغيرة جدًا.', treatment:'زيت معدني بستاني رشًا على النموات الحديثة، مع تجنب الإفراط بالتسميد النيتروجيني الذي يحفز نموًا غضًا جاذبًا للحشرة.'},
+ {name:'فيلوكسرا العنب', slug:'phylloxera', crops:['grape'], symptom:'تورمات عقدية صغيرة (galls) تظهر على الجذور أو على السطح السفلي لبعض الأوراق، مع ضعف عام وتدريجي في نمو الكرمة دون سبب مرضي ظاهر بالأعلى.', explain:'التورمات العقدية الغريبة (galls) على الجذور تحديدًا هي العلامة الفارقة لهذه الآفة الخطيرة على الكرمة.', treatment:'لا يوجد علاج كيميائي فعّال على الجذور المصابة؛ الحل الأساسي عالميًا هو التطعيم على أصول كرمة مقاومة (Rootstocks).'}
 ];
 
 /* ===================== 4) حالات فسيولوجية ===================== */
@@ -267,12 +349,13 @@ const ORGANIC = [
 let CASE_BANK = [];
 let idc = 0;
 
-function addCase(cat, cropId, name, symptom, options, correctIndex, explain, severity, shapeOverride, treatment){
+function addCase(cat, cropId, name, symptom, options, correctIndex, explain, severity, shapeOverride, treatment, photo){
   idc++;
   CASE_BANK.push({
-    id: idc, category: cat, crop: CROPS[cropId], name,
+    id: idc, category: cat, crop: CROPS[cropId], cropId, name,
     symptom: (severity==='early' ? 'في مرحلة مبكرة من الإصابة: ' : severity==='advanced' ? 'في حالة متقدمة نسبيًا: ' : '') + symptom,
-    options, correctIndex, explain, shape: shapeOverride || defaultShape(cat), treatment: treatment || null
+    options, correctIndex, explain, shape: shapeOverride || defaultShape(cat), treatment: treatment || null,
+    photo: photo || null
   });
 }
 function defaultShape(cat){
@@ -288,7 +371,8 @@ NUTRIENTS.forEach((fact, fi)=>{
   ALL_CROPS.forEach((cropId, ci)=>{
     const distractors = pick(NUTRIENT_NAMES.filter(n=>n!==fact.name), 3, fi*100+ci);
     const options = seededShuffle([fact.name, ...distractors], fi*77+ci*13);
-    addCase('nutrient', cropId, fact.name, fact.symptom, options, options.indexOf(fact.name), fact.explain, null);
+    const photo = fact.slug ? `${cropId}_${fact.slug}.jpg` : null;
+    addCase('nutrient', cropId, fact.name, fact.symptom, options, options.indexOf(fact.name), fact.explain, null, null, null, photo);
   });
 });
 
@@ -297,10 +381,11 @@ function buildFromFacts(catKey, facts, allNames, variants){
   facts.forEach((fact, fi)=>{
     fact.crops.forEach((cropId, ci)=>{
       const distractors = pick(allNames.filter(n=>n!==fact.name), 3, fi*50+ci*7+catKey.length);
+      const photo = fact.slug ? `${cropId}_${fact.slug}.jpg` : null;
       variants.forEach((sev, vi)=>{
         const seed = fi*997 + ci*131 + vi*17 + catKey.length;
         const options = seededShuffle([fact.name, ...distractors], seed);
-        addCase(catKey, cropId, fact.name, fact.symptom, options, options.indexOf(fact.name), fact.explain, sev, fact.shape, fact.treatment);
+        addCase(catKey, cropId, fact.name, fact.symptom, options, options.indexOf(fact.name), fact.explain, sev, fact.shape, fact.treatment, photo);
       });
     });
   });
@@ -385,16 +470,115 @@ function iconFor(c){
   return svgLeaf('wilt', null, 0, seed);
 }
 
+/* ===================== نصائح وقاية عامة لكل فئة ===================== */
+const PREVENTION = {
+ nutrient:'فحص تربة دوري (كل موسم) لتحديد النقص قبل ظهور الأعراض، مع تسميد متوازن بدل الاعتماد على عنصر واحد فقط.',
+ fungal:'تهوية جيدة بين النباتات (تباعد مناسب + تقليم مخفف)، تجنب الري العلوي المسائي، وإزالة الأجزاء المصابة فور ظهورها.',
+ pest:'مراقبة أسبوعية للأوراق (خصوصًا السطح السفلي)، مصائد لاصقة/فرمونية للرصد المبكر، وتشجيع الأعداء الحيوية الطبيعية.',
+ physio:'انتظام جدول الري والتسميد، وحماية النبات من التغيرات المناخية المفاجئة (تظليل، تدفئة وقت الصقيع).',
+ pruning:'تعقيم أدوات التقليم بين الأشجار، تغطية الجروح الكبيرة بمعجون واقٍ، والتقليم في التوقيت الموصى به لكل نوع.',
+ irrigation:'جدولة الري حسب احتياج المحصول الفعلي لا حسب الروتين، وفحص شبكة التنقيط دوريًا من الانسداد أو التسريب.',
+ organic:'التأكد من اكتمال تخمر أي سماد عضوي قبل استخدامه قرب الجذور، واتباع دورة زراعية منتظمة لكسر دورة الآفات.'
+};
+
+/* ===================== Firebase (اختياري) ===================== */
+// ضع بيانات مشروعك من Firebase Console هنا بدل هذه القيم لتفعيل تسجيل الدخول الحقيقي بالبريد وكلمة المرور.
+// إذا تركتها كما هي، يعمل التطبيق تلقائيًا في "وضع الضيف" بدون أي خطأ.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDFeIvGg8D35UncOESDYphBLfY_mcg536Q",
+  authDomain: "crop-clinic-7b3e6.firebaseapp.com",
+  projectId: "crop-clinic-7b3e6",
+  storageBucket: "crop-clinic-7b3e6.firebasestorage.app",
+  messagingSenderId: "240919436936",
+  appId: "1:240919436936:web:52ef5a48ab198921f3893d"
+};
+let fbApp = null, fbAuth = null, fbDb = null, fbUser = null;
+try{
+  if(FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY'){
+    fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+  }
+}catch(e){ console.warn('Firebase غير مُفعّل:', e.message); }
+
+let authMode = 'login'; // login | signup
+
+function openAuthModal(){ document.getElementById('auth-modal').classList.add('show'); }
+function closeAuthModal(){ document.getElementById('auth-modal').classList.remove('show'); }
+document.getElementById('auth-open-btn').addEventListener('click', openAuthModal);
+document.getElementById('auth-close').addEventListener('click', closeAuthModal);
+document.getElementById('auth-guest-btn').addEventListener('click', closeAuthModal);
+
+document.getElementById('auth-toggle-mode').addEventListener('click', ()=>{
+  authMode = authMode==='login' ? 'signup' : 'login';
+  document.getElementById('auth-title').textContent = authMode==='login' ? 'تسجيل الدخول' : 'إنشاء حساب جديد';
+  document.getElementById('auth-submit-btn').textContent = authMode==='login' ? 'دخول' : 'إنشاء الحساب';
+  document.getElementById('auth-toggle-mode').textContent = authMode==='login' ? 'ليس لديك حساب؟ أنشئ حساب جديد' : 'لديك حساب بالفعل؟ سجّل الدخول';
+  document.getElementById('auth-msg').textContent='';
+});
+
+document.getElementById('auth-submit-btn').addEventListener('click', async ()=>{
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-password').value;
+  const msg = document.getElementById('auth-msg');
+  if(!fbAuth){ msg.textContent = 'تسجيل الدخول غير مُفعّل بعد على هذا الموقع (يحتاج إعداد Firebase من مالك الموقع).'; return; }
+  if(!email || !pass){ msg.textContent = 'الرجاء تعبئة البريد وكلمة المرور.'; return; }
+  msg.textContent = '...جارٍ المعالجة';
+  try{
+    if(authMode==='login') await fbAuth.signInWithEmailAndPassword(email, pass);
+    else await fbAuth.createUserWithEmailAndPassword(email, pass);
+    closeAuthModal();
+  }catch(e){ msg.textContent = 'خطأ: ' + (e.message || 'تعذر تسجيل الدخول'); }
+});
+
+document.getElementById('auth-logout-btn').addEventListener('click', ()=>{ if(fbAuth) fbAuth.signOut(); closeAuthModal(); });
+
+if(fbAuth){
+  fbAuth.onAuthStateChanged(async user=>{
+    fbUser = user;
+    if(user){
+      document.getElementById('auth-status').textContent = 'مسجّل الدخول: ' + user.email;
+      document.getElementById('auth-open-btn').textContent = 'حسابي';
+      document.getElementById('auth-form-area').style.display='none';
+      document.getElementById('auth-loggedin-area').style.display='block';
+      document.getElementById('auth-current-email').textContent = user.email;
+      await loadProgress();
+    } else {
+      document.getElementById('auth-status').textContent = 'وضع الضيف — التقدم محفوظ على هذا الجهاز';
+      document.getElementById('auth-open-btn').textContent = 'تسجيل الدخول';
+      document.getElementById('auth-form-area').style.display='block';
+      document.getElementById('auth-loggedin-area').style.display='none';
+      await loadProgress();
+    }
+    renderStats(); renderBadges();
+  });
+}
+
 /* ===================== حالة التطبيق ===================== */
-let progress = { total:0, correct:0, weakness:{}, seenIds:[] };
+let progress = { total:0, correct:0, weakness:{}, seenIds:[], history:[], notes:{} };
 let activeCat = 'all';
 let currentCase = null;
 
-function loadProgress(){
-  try{ const raw = localStorage.getItem('crop-clinic-progress'); if(raw) progress = JSON.parse(raw); }catch(e){}
-  renderStats();
+async function loadProgress(){
+  if(fbUser && fbDb){
+    try{
+      const doc = await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('progress').get();
+      if(doc.exists) progress = Object.assign({total:0,correct:0,weakness:{},seenIds:[],history:[],notes:{}}, doc.data());
+      else progress = { total:0, correct:0, weakness:{}, seenIds:[], history:[], notes:{} };
+    }catch(e){ console.warn('تعذر تحميل التقدم من الحساب:', e.message); }
+  } else {
+    try{ const raw = localStorage.getItem('crop-clinic-progress'); if(raw) progress = JSON.parse(raw); }catch(e){}
+  }
+  renderStats(); renderBadges();
 }
-function saveProgress(){ try{ localStorage.setItem('crop-clinic-progress', JSON.stringify(progress)); }catch(e){} }
+async function saveProgress(){
+  if(fbUser && fbDb){
+    try{ await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('progress').set(progress); }
+    catch(e){ console.warn('تعذر حفظ التقدم في الحساب:', e.message); }
+  } else {
+    try{ localStorage.setItem('crop-clinic-progress', JSON.stringify(progress)); }catch(e){}
+  }
+}
 
 function renderStats(){
   document.getElementById('st-total').textContent = progress.total;
@@ -403,6 +587,36 @@ function renderStats(){
   const weakSorted = Object.entries(progress.weakness).sort((a,b)=>b[1]-a[1]).slice(0,2);
   document.getElementById('weak-line').textContent = weakSorted.length ? 'نقاط ضعف: ' + weakSorted.map(w=>CATS[w[0]]).join(' · ') : '';
 }
+
+/* ===================== شارات الإنجاز ===================== */
+function computeBadges(){
+  const acc = progress.total ? Math.round(100*progress.correct/progress.total) : 0;
+  return [
+    {label:'أول 10 حالات', earned: progress.total>=10},
+    {label:'100 حالة', earned: progress.total>=100},
+    {label:'300 حالة', earned: progress.total>=300},
+    {label:'دقة 70%+', earned: acc>=70 && progress.total>=20},
+    {label:'دقة 90%+', earned: acc>=90 && progress.total>=20},
+    {label:'نصف البنك', earned: progress.seenIds.length >= CASE_BANK.length/2},
+    {label:'كل البنك', earned: progress.seenIds.length >= CASE_BANK.length},
+  ];
+}
+function renderBadges(){
+  const row = document.getElementById('badge-row');
+  row.innerHTML = computeBadges().map(b=>`<span class="badge-chip ${b.earned?'earned':''}">${b.earned?'🏅 ':'🔒 '}${b.label}</span>`).join('');
+}
+
+/* ===================== تبويبات ===================== */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['train','quiz','browse'].forEach(v=>{
+      document.getElementById('view-'+v).style.display = (v===btn.dataset.tab) ? 'block' : 'none';
+    });
+    if(btn.dataset.tab==='browse') renderBrowseList('');
+  });
+});
 
 function buildCatBar(){
   const bar = document.getElementById('catbar');
@@ -417,8 +631,8 @@ function buildCatBar(){
   });
 }
 
-function pickNextCase(){
-  let pool = activeCat==='all' ? CASE_BANK : CASE_BANK.filter(c=>c.category===activeCat);
+function pickNextCase(pool){
+  pool = pool || (activeCat==='all' ? CASE_BANK : CASE_BANK.filter(c=>c.category===activeCat));
   const unseen = pool.filter(c=>!progress.seenIds.includes(c.id));
   const weakCats = Object.entries(progress.weakness).sort((a,b)=>b[1]-a[1]).map(w=>w[0]);
   if(weakCats.length && Math.random()<0.35){
@@ -429,27 +643,40 @@ function pickNextCase(){
   return pool[Math.floor(Math.random()*pool.length)];
 }
 
-function nextCase(){
-  const c = pickNextCase();
-  currentCase = c;
-  document.getElementById('illus-box').innerHTML = iconFor(c);
-  document.getElementById('crop-name').textContent = c.crop;
-  document.getElementById('cat-label').textContent = CATS[c.category];
-  document.getElementById('lvl-badge').textContent = c.symptom.startsWith('في مرحلة مبكرة') ? 'مبكر' : c.symptom.startsWith('في حالة متقدمة') ? 'متقدم' : 'قياسي';
-  document.getElementById('symptoms-box').textContent = c.symptom;
-  const box = document.getElementById('options-box');
+function renderCaseInto(c, optsBoxId, symptomBoxId, illusBoxId, cropNameId, catLabelId, lvlBadgeId, onAnswer){
+  document.getElementById(illusBoxId).innerHTML = c.photo
+    ? `<img src="images/${c.photo}" alt="${c.name}" style="max-width:100%;max-height:160px;border-radius:6px;object-fit:cover;" onerror="this.parentElement.innerHTML=iconFor(${JSON.stringify(c).replace(/"/g,'&quot;')});">`
+    : iconFor(c);
+  document.getElementById(cropNameId).textContent = c.crop;
+  document.getElementById(catLabelId).textContent = CATS[c.category];
+  document.getElementById(lvlBadgeId).textContent = c.symptom.startsWith('في مرحلة مبكرة') ? 'مبكر' : c.symptom.startsWith('في حالة متقدمة') ? 'متقدم' : 'قياسي';
+  document.getElementById(symptomBoxId).textContent = c.symptom;
+  const box = document.getElementById(optsBoxId);
   box.innerHTML='';
   c.options.forEach((opt,i)=>{
     const b = document.createElement('button');
-    b.className='opt'; b.textContent=opt; b.onclick=()=>answer(i);
+    b.className='opt'; b.textContent=opt; b.onclick=()=>onAnswer(i);
     box.appendChild(b);
   });
+}
+
+function nextCase(){
+  const c = pickNextCase();
+  currentCase = c;
+  renderCaseInto(c, 'options-box','symptoms-box','illus-box','crop-name','cat-label','lvl-badge', answer);
   document.getElementById('feedback-box').className='feedback';
   if(!progress.seenIds.includes(c.id)) progress.seenIds.push(c.id);
 }
 
+function feedbackHTML(c, isRight){
+  let html = `<b>${isRight?'✔ إجابة صحيحة — '+c.name:'✘ غير دقيق — الصحيح: '+c.name}</b>${c.explain}`;
+  if(c.treatment) html += `<div class="treat-box">💊 <b class="treat-label">العلاج / المادة الفعالة</b>${c.treatment}</div>`;
+  if(PREVENTION[c.category]) html += `<div class="prevent-box">🛡 <b class="prevent-label">الوقاية العامة</b>${PREVENTION[c.category]}</div>`;
+  return html;
+}
+
 function answer(i){
-  const buttons = document.querySelectorAll('.opt');
+  const buttons = document.querySelectorAll('#options-box .opt');
   buttons.forEach(b=>b.disabled=true);
   const correct = currentCase.correctIndex;
   buttons[correct].classList.add('correct');
@@ -459,17 +686,90 @@ function answer(i){
     progress.weakness[currentCase.category] = (progress.weakness[currentCase.category]||0)+1;
   }
   progress.total++; if(isRight) progress.correct++;
-  saveProgress(); renderStats();
+  saveProgress(); renderStats(); renderBadges();
   const fb = document.getElementById('feedback-box');
   fb.className = 'feedback show ' + (isRight?'ok':'no');
-  let html = `<b>${isRight?'✔ إجابة صحيحة — '+currentCase.name:'✘ غير دقيق — الصحيح: '+currentCase.name}</b>${currentCase.explain}`;
-  if(currentCase.treatment){
-    html += `<div class="treat-box">💊 <b class="treat-label">العلاج / المادة الفعالة</b>${currentCase.treatment}</div>`;
-  }
-  fb.innerHTML = html;
+  fb.innerHTML = feedbackHTML(currentCase, isRight);
 }
 
 document.getElementById('next-btn').addEventListener('click', nextCase);
+
+/* ===================== اختبار محاكاة ===================== */
+let quiz = null;
+document.getElementById('quiz-start-btn').addEventListener('click', startQuiz);
+
+function startQuiz(){
+  const pool = seededShuffle(CASE_BANK, Date.now()%100000).slice(0,20);
+  quiz = { pool, index:0, correct:0, answered:false };
+  renderQuizQuestion();
+}
+function renderQuizQuestion(){
+  const card = document.getElementById('quiz-card');
+  if(quiz.index >= quiz.pool.length){
+    const pct = Math.round(100*quiz.correct/quiz.pool.length);
+    progress.history = progress.history || [];
+    progress.history.push({date:new Date().toISOString().slice(0,10), pct});
+    if(progress.history.length>10) progress.history.shift();
+    saveProgress();
+    const trend = progress.history.map(h=>`<div style="display:inline-block;width:8px;height:${10+h.pct*0.5}px;background:var(--amber);margin:0 1px;border-radius:2px;vertical-align:bottom;"></div>`).join('');
+    card.innerHTML = `<div class="quiz-result"><div class="big">${pct}%</div><p style="font-size:13px;color:#5a4d2c;">${quiz.correct} إجابة صحيحة من ${quiz.pool.length}</p>
+      <p style="font-size:11px;color:#8a7d55;margin-top:14px;">اتجاه آخر ${progress.history.length} اختبارات</p>
+      <div style="margin-top:4px;">${trend}</div></div>
+      <button class="next-btn" onclick="startQuiz()">اختبار جديد</button>`;
+    renderBadges();
+    return;
+  }
+  const c = quiz.pool[quiz.index];
+  card.innerHTML = `
+    <div class="quiz-progress"><span>سؤال ${quiz.index+1} من ${quiz.pool.length}</span><span>✔ ${quiz.correct}</span></div>
+    <div class="illus" id="q-illus"></div>
+    <div class="card-top"><div class="crop-name" id="q-crop">—</div><div class="meta"><div id="q-cat">فئة</div><div class="lvl" id="q-lvl">—</div></div></div>
+    <div class="symptoms" id="q-symptom"></div>
+    <div class="options" id="q-options"></div>
+    <div class="feedback" id="q-feedback"></div>
+    <button class="next-btn" id="q-next-btn" style="display:none">${quiz.index+1<quiz.pool.length?'السؤال التالي ⟵':'عرض النتيجة'}</button>
+  `;
+  renderCaseInto(c, 'q-options','q-symptom','q-illus','q-crop','q-cat','q-lvl', quizAnswer);
+  document.getElementById('q-next-btn').addEventListener('click', ()=>{ quiz.index++; renderQuizQuestion(); });
+}
+function quizAnswer(i){
+  const c = quiz.pool[quiz.index];
+  const buttons = document.querySelectorAll('#q-options .opt');
+  buttons.forEach(b=>b.disabled=true);
+  buttons[c.correctIndex].classList.add('correct');
+  const isRight = i===c.correctIndex;
+  if(!isRight) buttons[i].classList.add('wrong'); else quiz.correct++;
+  const fb = document.getElementById('q-feedback');
+  fb.className = 'feedback show ' + (isRight?'ok':'no');
+  fb.innerHTML = feedbackHTML(c, isRight);
+  document.getElementById('q-next-btn').style.display='block';
+}
+
+/* ===================== تصفح وبحث ===================== */
+const FACT_INDEX = [
+  ...NUTRIENTS.map(f=>({...f, category:'nutrient'})),
+  ...FUNGAL.map(f=>({...f, category:'fungal'})),
+  ...PESTS.map(f=>({...f, category:'pest'})),
+  ...PHYSIO.map(f=>({...f, category:'physio'})),
+  ...PRUNING.map(f=>({...f, category:'pruning'})),
+  ...IRRIGATION.map(f=>({...f, category:'irrigation'})),
+  ...ORGANIC.map(f=>({...f, category:'organic'})),
+];
+function renderBrowseList(filterText){
+  const list = document.getElementById('browse-list');
+  const q = (filterText||'').trim();
+  const filtered = FACT_INDEX.filter(f => !q || f.name.includes(q) || (f.crops||[]).some(cid=>CROPS[cid] && CROPS[cid].includes(q)));
+  if(!filtered.length){ list.innerHTML = '<p style="text-align:center;color:#a9b696;font-size:12.5px;">لا توجد نتائج مطابقة.</p>'; return; }
+  list.innerHTML = filtered.slice(0,60).map(f=>`
+    <div class="browse-item">
+      <b>${f.name}</b>
+      <span class="bi-crop">${CATS[f.category]}${f.crops ? ' — ' + f.crops.map(c=>CROPS[c]).join('، ') : ' — كل المحاصيل'}</span>
+      <div style="margin-top:6px;">${f.symptom}</div>
+      ${f.treatment ? `<span class="bi-treat">💊 ${f.treatment}</span>` : ''}
+      ${PREVENTION[f.category] ? `<span class="bi-prevent">🛡 ${PREVENTION[f.category]}</span>` : ''}
+    </div>`).join('');
+}
+document.getElementById('search-input').addEventListener('input', e=> renderBrowseList(e.target.value));
 
 /* ===================== دليل المكافحة ===================== */
 function buildGuide(){
@@ -492,6 +792,29 @@ document.getElementById('guide-btn').addEventListener('click', ()=>{
 });
 document.getElementById('guide-close').addEventListener('click', ()=>{
   document.getElementById('guide-modal').classList.remove('show');
+});
+
+/* ===================== تصدير / استيراد التقدم ===================== */
+document.getElementById('export-btn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(progress, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'crop-clinic-progress.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('import-btn').addEventListener('click', ()=> document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    try{
+      const data = JSON.parse(reader.result);
+      progress = Object.assign({total:0,correct:0,weakness:{},seenIds:[],history:[],notes:{}}, data);
+      await saveProgress(); renderStats(); renderBadges();
+      alert('تم استيراد التقدم بنجاح.');
+    }catch(e){ alert('ملف غير صالح.'); }
+  };
+  reader.readAsText(file);
 });
 
 buildCatBar();
