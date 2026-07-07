@@ -115,10 +115,10 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="app-wrap" style="display:none">
   <div class="authbar">
-    <span id="auth-status">وضع الضيف — التقدم محفوظ على هذا الجهاز</span>
-    <button id="auth-open-btn">تسجيل الدخول</button>
+    <span id="auth-status">مسجّل الدخول</span>
+    <button id="auth-open-btn">حسابي</button>
   </div>
 
   <header>
@@ -188,20 +188,21 @@
   </div>
 </div>
 
-<div class="modal" id="auth-modal">
+<div class="modal show" id="auth-modal" style="z-index:200;">
   <div class="modal-inner">
-    <div class="modal-head"><h2 id="auth-title">تسجيل الدخول</h2><button class="modal-close" id="auth-close">إغلاق ✕</button></div>
+    <div class="modal-head"><h2 id="auth-title">تسجيل الدخول مطلوب</h2></div>
+    <p style="font-size:12.5px;color:#b7c4a5;text-align:center;margin-top:-4px;">هذا الموقع يتطلب حسابًا لعرض المحتوى.</p>
     <div id="auth-form-area">
       <input class="authfield" id="auth-email" type="email" placeholder="البريد الإلكتروني">
       <input class="authfield" id="auth-password" type="password" placeholder="كلمة المرور">
       <div class="auth-msg" id="auth-msg"></div>
       <button class="auth-primary" id="auth-submit-btn">دخول</button>
       <div class="auth-toggle" id="auth-toggle-mode">ليس لديك حساب؟ أنشئ حساب جديد</div>
-      <button class="auth-secondary" id="auth-guest-btn">المتابعة كضيف بدون حساب</button>
     </div>
     <div id="auth-loggedin-area" style="display:none">
       <p style="font-size:13px;color:#c9d6b8;text-align:center;">مسجّل الدخول كـ <b id="auth-current-email" style="color:#f2ecd9;"></b></p>
       <button class="auth-secondary" id="auth-logout-btn">تسجيل الخروج</button>
+      <button class="auth-secondary" id="auth-close">إغلاق ✕</button>
     </div>
   </div>
 </div>
@@ -507,11 +508,10 @@ function openAuthModal(){ document.getElementById('auth-modal').classList.add('s
 function closeAuthModal(){ document.getElementById('auth-modal').classList.remove('show'); }
 document.getElementById('auth-open-btn').addEventListener('click', openAuthModal);
 document.getElementById('auth-close').addEventListener('click', closeAuthModal);
-document.getElementById('auth-guest-btn').addEventListener('click', closeAuthModal);
 
 document.getElementById('auth-toggle-mode').addEventListener('click', ()=>{
   authMode = authMode==='login' ? 'signup' : 'login';
-  document.getElementById('auth-title').textContent = authMode==='login' ? 'تسجيل الدخول' : 'إنشاء حساب جديد';
+  document.getElementById('auth-title').textContent = authMode==='login' ? 'تسجيل الدخول مطلوب' : 'إنشاء حساب جديد';
   document.getElementById('auth-submit-btn').textContent = authMode==='login' ? 'دخول' : 'إنشاء الحساب';
   document.getElementById('auth-toggle-mode').textContent = authMode==='login' ? 'ليس لديك حساب؟ أنشئ حساب جديد' : 'لديك حساب بالفعل؟ سجّل الدخول';
   document.getElementById('auth-msg').textContent='';
@@ -527,31 +527,37 @@ document.getElementById('auth-submit-btn').addEventListener('click', async ()=>{
   try{
     if(authMode==='login') await fbAuth.signInWithEmailAndPassword(email, pass);
     else await fbAuth.createUserWithEmailAndPassword(email, pass);
-    closeAuthModal();
   }catch(e){ msg.textContent = 'خطأ: ' + (e.message || 'تعذر تسجيل الدخول'); }
 });
 
-document.getElementById('auth-logout-btn').addEventListener('click', ()=>{ if(fbAuth) fbAuth.signOut(); closeAuthModal(); });
+document.getElementById('auth-logout-btn').addEventListener('click', ()=>{ if(fbAuth) fbAuth.signOut(); });
 
 if(fbAuth){
   fbAuth.onAuthStateChanged(async user=>{
     fbUser = user;
+    const gate = document.getElementById('auth-modal');
+    const appWrap = document.getElementById('app-wrap');
     if(user){
+      gate.classList.remove('show');
+      appWrap.style.display='block';
       document.getElementById('auth-status').textContent = 'مسجّل الدخول: ' + user.email;
       document.getElementById('auth-open-btn').textContent = 'حسابي';
       document.getElementById('auth-form-area').style.display='none';
       document.getElementById('auth-loggedin-area').style.display='block';
       document.getElementById('auth-current-email').textContent = user.email;
       await loadProgress();
+      renderStats(); renderBadges();
     } else {
-      document.getElementById('auth-status').textContent = 'وضع الضيف — التقدم محفوظ على هذا الجهاز';
-      document.getElementById('auth-open-btn').textContent = 'تسجيل الدخول';
+      gate.classList.add('show');
+      appWrap.style.display='none';
       document.getElementById('auth-form-area').style.display='block';
       document.getElementById('auth-loggedin-area').style.display='none';
-      await loadProgress();
     }
-    renderStats(); renderBadges();
   });
+} else {
+  // Firebase غير مُفعّل من مالك الموقع بعد — لا يمكن فرض تسجيل دخول حقيقي، يعمل التطبيق كضيف مؤقتًا
+  document.getElementById('auth-modal').classList.remove('show');
+  document.getElementById('app-wrap').style.display='block';
 }
 
 /* ===================== حالة التطبيق ===================== */
