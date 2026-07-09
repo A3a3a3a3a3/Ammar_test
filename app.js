@@ -1,3 +1,16 @@
+/* ===================== بيانات عرض أساسية (غير حساسة) ===================== */
+const CROPS = {
+ grape:'العنب', citrus:'الحمضيات', tomato:'الطماطم', wheat:'القمح', olive:'الزيتون',
+ apple:'التفاح', cucumber:'الخيار', eggplant:'الباذنجان', pepper:'الفلفل', potato:'البطاطا',
+ fig:'التين', pomegranate:'الرمان', almond:'اللوز', apricot:'المشمش', peach:'الخوخ',
+ corn:'الذرة', beans:'الفول', strawberry:'الفراولة'
+};
+const CATS = {
+ nutrient:'نقص عناصر غذائية', fungal:'أمراض فطرية', pest:'آفات حشرية',
+ physio:'حالات فسيولوجية', pruning:'تقليم وإدارة النبات',
+ irrigation:'ري وتسميد', organic:'مخلفات عضوية وتكامل زراعي'
+};
+
 /* ===================== أدوات مساعدة ===================== */
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function seededShuffle(arr, seed){
@@ -7,19 +20,11 @@ function seededShuffle(arr, seed){
 }
 function pick(arr, n, seed){ return seededShuffle(arr, seed).slice(0,n); }
 
-/* ===================== توليد بنك الحالات ===================== */
+/* ===================== بنك الحالات (يُجلب من Firestore بعد تسجيل الدخول فقط) ===================== */
 let CASE_BANK = [];
-let idc = 0;
+let FACT_INDEX = [];
+let PREVENTION = {};
 
-function addCase(cat, cropId, name, symptom, options, correctIndex, explain, severity, shapeOverride, treatment, photo){
-  idc++;
-  CASE_BANK.push({
-    id: idc, category: cat, crop: CROPS[cropId], cropId, name,
-    symptom: (severity==='early' ? 'في مرحلة مبكرة من الإصابة: ' : severity==='advanced' ? 'في حالة متقدمة نسبيًا: ' : '') + symptom,
-    options, correctIndex, explain, shape: shapeOverride || defaultShape(cat), treatment: treatment || null,
-    photo: photo || null
-  });
-}
 function defaultShape(cat){
   if(cat==='physio') return 'fruit';
   if(cat==='pruning') return 'branch';
@@ -27,40 +32,24 @@ function defaultShape(cat){
   return 'leaf';
 }
 
-// 1) نقص العناصر: لكل عنصر × كل المحاصيل
-const NUTRIENT_NAMES = NUTRIENTS.map(n=>n.name);
-NUTRIENTS.forEach((fact, fi)=>{
-  ALL_CROPS.forEach((cropId, ci)=>{
-    const distractors = pick(NUTRIENT_NAMES.filter(n=>n!==fact.name), 3, fi*100+ci);
-    const options = seededShuffle([fact.name, ...distractors], fi*77+ci*13);
-    const photo = fact.slug ? `${cropId}_${fact.slug}.jpg` : null;
-    addCase('nutrient', cropId, fact.name, fact.symptom, options, options.indexOf(fact.name), fact.explain, null, null, null, photo);
-  });
-});
-
-// دالة عامة لتوليد حالات فئة معينة من بنك حقائق فيه crops لكل حقيقة
-function buildFromFacts(catKey, facts, allNames, variants){
-  facts.forEach((fact, fi)=>{
-    fact.crops.forEach((cropId, ci)=>{
-      const distractors = pick(allNames.filter(n=>n!==fact.name), 3, fi*50+ci*7+catKey.length);
-      const photo = fact.slug ? `${cropId}_${fact.slug}.jpg` : null;
-      variants.forEach((sev, vi)=>{
-        const seed = fi*997 + ci*131 + vi*17 + catKey.length;
-        const options = seededShuffle([fact.name, ...distractors], seed);
-        addCase(catKey, cropId, fact.name, fact.symptom, options, options.indexOf(fact.name), fact.explain, sev, fact.shape, fact.treatment, photo);
-      });
-    });
-  });
+async function loadCaseDataFromFirestore(){
+  if(!fbDb) return false;
+  try{
+    const [casesSnap, factsSnap, prevDoc] = await Promise.all([
+      fbDb.collection('cases').get(),
+      fbDb.collection('facts').get(),
+      fbDb.collection('meta').doc('prevention').get()
+    ]);
+    CASE_BANK = casesSnap.docs.map(d=>d.data()).sort((a,b)=>a.id-b.id);
+    FACT_INDEX = factsSnap.docs.map(d=>d.data());
+    PREVENTION = prevDoc.exists ? prevDoc.data() : {};
+    document.getElementById('bank-count').textContent = `${CASE_BANK.length} حالة تشخيصية — محمية بتسجيل الدخول`;
+    return CASE_BANK.length > 0;
+  }catch(e){
+    console.error('تعذر جلب بيانات الحالات من Firestore:', e.message);
+    return false;
+  }
 }
-
-buildFromFacts('fungal', FUNGAL, FUNGAL.map(f=>f.name), [null,'early','advanced']);
-buildFromFacts('pest', PESTS, PESTS.map(f=>f.name), [null,'early','advanced']);
-buildFromFacts('physio', PHYSIO, PHYSIO.map(f=>f.name), [null,'advanced']);
-buildFromFacts('pruning', PRUNING, PRUNING.map(f=>f.name), [null,'advanced']);
-buildFromFacts('irrigation', IRRIGATION, IRRIGATION.map(f=>f.name), [null,'advanced']);
-buildFromFacts('organic', ORGANIC, ORGANIC.map(f=>f.name), [null,'advanced']);
-
-document.getElementById('bank-count').textContent = `${CASE_BANK.length} حالة تشخيصية — يعمل بالكامل بدون إنترنت`;
 
 /* ===================== SVG توضيحي ===================== */
 function svgLeaf(tone, spotType, spotCount, seed){
@@ -132,17 +121,6 @@ function iconFor(c){
   return svgLeaf('wilt', null, 0, seed);
 }
 
-/* ===================== نصائح وقاية عامة لكل فئة ===================== */
-const PREVENTION = {
- nutrient:'فحص تربة دوري (كل موسم) لتحديد النقص قبل ظهور الأعراض، مع تسميد متوازن بدل الاعتماد على عنصر واحد فقط.',
- fungal:'تهوية جيدة بين النباتات (تباعد مناسب + تقليم مخفف)، تجنب الري العلوي المسائي، وإزالة الأجزاء المصابة فور ظهورها.',
- pest:'مراقبة أسبوعية للأوراق (خصوصًا السطح السفلي)، مصائد لاصقة/فرمونية للرصد المبكر، وتشجيع الأعداء الحيوية الطبيعية.',
- physio:'انتظام جدول الري والتسميد، وحماية النبات من التغيرات المناخية المفاجئة (تظليل، تدفئة وقت الصقيع).',
- pruning:'تعقيم أدوات التقليم بين الأشجار، تغطية الجروح الكبيرة بمعجون واقٍ، والتقليم في التوقيت الموصى به لكل نوع.',
- irrigation:'جدولة الري حسب احتياج المحصول الفعلي لا حسب الروتين، وفحص شبكة التنقيط دوريًا من الانسداد أو التسريب.',
- organic:'التأكد من اكتمال تخمر أي سماد عضوي قبل استخدامه قرب الجذور، واتباع دورة زراعية منتظمة لكسر دورة الآفات.'
-};
-
 /* ===================== Firebase (اختياري) ===================== */
 // ضع بيانات مشروعك من Firebase Console هنا بدل هذه القيم لتفعيل تسجيل الدخول الحقيقي بالبريد وكلمة المرور.
 // إذا تركتها كما هي، يعمل التطبيق تلقائيًا في "وضع الضيف" بدون أي خطأ.
@@ -206,8 +184,17 @@ if(fbAuth){
       document.getElementById('auth-form-area').style.display='none';
       document.getElementById('auth-loggedin-area').style.display='block';
       document.getElementById('auth-current-email').textContent = user.email;
+
+      document.getElementById('bank-count').textContent = '...جارٍ تحميل بيانات الحالات من حسابك';
+      const ok = await loadCaseDataFromFirestore();
+      if(!ok || CASE_BANK.length === 0){
+        document.getElementById('bank-count').textContent = 'تعذر تحميل بيانات الحالات. تأكد من إجراء الترحيل (seed) وقواعد الأمان بشكل صحيح.';
+        return;
+      }
       await loadProgress();
       renderStats(); renderBadges();
+      buildCatBar();
+      nextCase();
     } else {
       gate.classList.add('show');
       appWrap.style.display='none';
@@ -216,9 +203,10 @@ if(fbAuth){
     }
   });
 } else {
-  // Firebase غير مُفعّل من مالك الموقع بعد — لا يمكن فرض تسجيل دخول حقيقي، يعمل التطبيق كضيف مؤقتًا
+  // Firebase غير مُفعّل — لا يوجد مصدر بيانات بديل (البيانات محمية بالكامل خلف تسجيل الدخول)
   document.getElementById('auth-modal').classList.remove('show');
   document.getElementById('app-wrap').style.display='block';
+  document.getElementById('bank-count').textContent = 'تسجيل الدخول غير مُفعّل على هذا الموقع، لا يمكن عرض البيانات.';
 }
 
 /* ===================== حالة التطبيق ===================== */
@@ -514,15 +502,6 @@ function quizAnswer(i){
 }
 
 /* ===================== تصفح وبحث ===================== */
-const FACT_INDEX = [
-  ...NUTRIENTS.map(f=>({...f, category:'nutrient'})),
-  ...FUNGAL.map(f=>({...f, category:'fungal'})),
-  ...PESTS.map(f=>({...f, category:'pest'})),
-  ...PHYSIO.map(f=>({...f, category:'physio'})),
-  ...PRUNING.map(f=>({...f, category:'pruning'})),
-  ...IRRIGATION.map(f=>({...f, category:'irrigation'})),
-  ...ORGANIC.map(f=>({...f, category:'organic'})),
-];
 function renderBrowseList(filterText){
   const list = document.getElementById('browse-list');
   const q = (filterText||'').trim();
@@ -548,11 +527,11 @@ function buildGuide(){
   const content = document.getElementById('guide-content');
   let html = '';
   html += '<div class="guide-group"><h3>🍄 أمراض فطرية</h3>';
-  FUNGAL.forEach(f=>{
+  FACT_INDEX.filter(f=>f.category==='fungal').forEach(f=>{
     html += `<div class="guide-item"><b>${f.name}</b>${f.treatment ? '<span class="gi-treat">'+f.treatment+'</span>' : ''}</div>`;
   });
   html += '</div><div class="guide-group"><h3>🐛 آفات حشرية</h3>';
-  PESTS.forEach(f=>{
+  FACT_INDEX.filter(f=>f.category==='pest').forEach(f=>{
     html += `<div class="guide-item"><b>${f.name}</b>${f.treatment ? '<span class="gi-treat">'+f.treatment+'</span>' : ''}</div>`;
   });
   html += '</div>';
@@ -588,7 +567,3 @@ document.getElementById('import-file').addEventListener('change', e=>{
   };
   reader.readAsText(file);
 });
-
-buildCatBar();
-loadProgress();
-nextCase();
