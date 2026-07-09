@@ -165,26 +165,45 @@ document.getElementById('auth-submit-btn').addEventListener('click', async ()=>{
   msg.textContent = '...جارٍ المعالجة';
   try{
     if(authMode==='login') await fbAuth.signInWithEmailAndPassword(email, pass);
-    else await fbAuth.createUserWithEmailAndPassword(email, pass);
+    else{
+      const cred = await fbAuth.createUserWithEmailAndPassword(email, pass);
+      await cred.user.sendEmailVerification();
+    }
   }catch(e){ msg.textContent = 'خطأ: ' + (e.message || 'تعذر تسجيل الدخول'); }
 });
 
 document.getElementById('auth-logout-btn').addEventListener('click', ()=>{ if(fbAuth) fbAuth.signOut(); });
+document.getElementById('auth-verify-logout-btn').addEventListener('click', ()=>{ if(fbAuth) fbAuth.signOut(); });
 
-if(fbAuth){
-  fbAuth.onAuthStateChanged(async user=>{
-    fbUser = user;
-    const gate = document.getElementById('auth-modal');
-    const appWrap = document.getElementById('app-wrap');
-    if(user){
-      gate.classList.remove('show');
-      appWrap.style.display='block';
-      document.getElementById('auth-status').textContent = 'مسجّل الدخول: ' + user.email;
-      document.getElementById('auth-open-btn').textContent = 'حسابي';
-      document.getElementById('auth-form-area').style.display='none';
-      document.getElementById('auth-loggedin-area').style.display='block';
-      document.getElementById('auth-current-email').textContent = user.email;
+document.getElementById('auth-recheck-btn').addEventListener('click', async ()=>{
+  if(!fbAuth.currentUser) return;
+  await fbAuth.currentUser.reload();
+  fbUser = fbAuth.currentUser;
+  if(fbUser.emailVerified){ renderAuthGate(); }
+  else{ alert('لسا ما فعّلت البريد. تأكد من فتح الرابط المرسل لك ثم حاول مرة أخرى.'); }
+});
+document.getElementById('auth-resend-btn').addEventListener('click', async ()=>{
+  if(!fbAuth.currentUser) return;
+  try{ await fbAuth.currentUser.sendEmailVerification(); alert('تم إرسال رابط تفعيل جديد إلى بريدك.'); }
+  catch(e){ alert('تعذر الإرسال، حاول لاحقًا: ' + e.message); }
+});
 
+async function renderAuthGate(){
+  const gate = document.getElementById('auth-modal');
+  const appWrap = document.getElementById('app-wrap');
+  const user = fbUser;
+
+  if(user && user.emailVerified){
+    gate.classList.remove('show');
+    appWrap.style.display='block';
+    document.getElementById('auth-status').textContent = 'مسجّل الدخول: ' + user.email;
+    document.getElementById('auth-open-btn').textContent = 'حسابي';
+    document.getElementById('auth-form-area').style.display='none';
+    document.getElementById('auth-verify-area').style.display='none';
+    document.getElementById('auth-loggedin-area').style.display='block';
+    document.getElementById('auth-current-email').textContent = user.email;
+
+    if(CASE_BANK.length === 0){
       document.getElementById('bank-count').textContent = '...جارٍ تحميل بيانات الحالات من حسابك';
       const ok = await loadCaseDataFromFirestore();
       if(!ok || CASE_BANK.length === 0){
@@ -195,12 +214,27 @@ if(fbAuth){
       renderStats(); renderBadges();
       buildCatBar();
       nextCase();
-    } else {
-      gate.classList.add('show');
-      appWrap.style.display='none';
-      document.getElementById('auth-form-area').style.display='block';
-      document.getElementById('auth-loggedin-area').style.display='none';
     }
+  } else if(user && !user.emailVerified){
+    gate.classList.add('show');
+    appWrap.style.display='none';
+    document.getElementById('auth-form-area').style.display='none';
+    document.getElementById('auth-loggedin-area').style.display='none';
+    document.getElementById('auth-verify-area').style.display='block';
+    document.getElementById('auth-verify-email').textContent = user.email;
+  } else {
+    gate.classList.add('show');
+    appWrap.style.display='none';
+    document.getElementById('auth-form-area').style.display='block';
+    document.getElementById('auth-loggedin-area').style.display='none';
+    document.getElementById('auth-verify-area').style.display='none';
+  }
+}
+
+if(fbAuth){
+  fbAuth.onAuthStateChanged(async user=>{
+    fbUser = user;
+    await renderAuthGate();
   });
 } else {
   // Firebase غير مُفعّل — لا يوجد مصدر بيانات بديل (البيانات محمية بالكامل خلف تسجيل الدخول)
@@ -388,6 +422,52 @@ document.getElementById('note-save-btn').addEventListener('click', ()=>{
   const old = btn.textContent; btn.textContent = '✔ تم الحفظ';
   setTimeout(()=>{ btn.textContent = old; }, 1500);
 });
+
+/* ===================== تصدير تقرير PDF ===================== */
+async function exportCasePDF(c){
+  if(!c || !window.html2canvas || !window.jspdf){ alert('تعذر تحميل أداة التصدير، تأكد من اتصالك بالإنترنت وحاول مجددًا.'); return; }
+  const note = (progress.notes && progress.notes[c.id]) || '';
+  const today = new Date().toLocaleDateString('ar-EG');
+
+  const report = document.createElement('div');
+  report.style.cssText = 'position:fixed;top:-9999px;left:0;width:640px;background:#fdf9ef;color:#25301c;padding:32px;font-family:Tahoma,sans-serif;direction:rtl;';
+  report.innerHTML = `
+    <div style="border-bottom:3px solid #c07a2b;padding-bottom:14px;margin-bottom:18px;">
+      <div style="font-size:11px;color:#a3641f;letter-spacing:2px;">عيادة المحصول — تقرير حالة ميدانية</div>
+      <div style="font-size:24px;font-weight:900;margin-top:6px;">${c.name}</div>
+      <div style="font-size:13px;color:#5a4d2c;margin-top:4px;">التاريخ: ${today} &nbsp;|&nbsp; المحصول: ${c.crop} &nbsp;|&nbsp; الفئة: ${CATS[c.category]}</div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-weight:900;font-size:14px;color:#a3641f;margin-bottom:4px;">الأعراض الملاحظة</div>
+      <div style="font-size:13.5px;line-height:2;">${c.symptom}</div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-weight:900;font-size:14px;color:#5f7a4f;margin-bottom:4px;">التشخيص والتفسير العلمي</div>
+      <div style="font-size:13.5px;line-height:2;">${c.explain}</div>
+    </div>
+    ${c.treatment ? `<div style="margin-bottom:14px;"><div style="font-weight:900;font-size:14px;color:#a3641f;margin-bottom:4px;">💊 العلاج / المادة الفعالة</div><div style="font-size:13.5px;line-height:2;">${c.treatment}</div></div>` : ''}
+    ${PREVENTION[c.category] ? `<div style="margin-bottom:14px;"><div style="font-weight:900;font-size:14px;color:#2f6b8a;margin-bottom:4px;">🛡 الوقاية العامة</div><div style="font-size:13.5px;line-height:2;">${PREVENTION[c.category]}</div></div>` : ''}
+    ${note ? `<div style="margin-bottom:14px;padding-top:10px;border-top:1px dashed #d8cca4;"><div style="font-weight:900;font-size:14px;color:#25301c;margin-bottom:4px;">ملاحظة المهندس</div><div style="font-size:13.5px;line-height:2;">${note}</div></div>` : ''}
+    <div style="margin-top:24px;padding-top:10px;border-top:1px solid #d8cca4;font-size:10.5px;color:#8a7d55;">تم إنشاء هذا التقرير عبر منصة عيادة المحصول</div>
+  `;
+  document.body.appendChild(report);
+  try{
+    const canvas = await html2canvas(report, {scale:2, backgroundColor:'#fdf9ef'});
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    pdf.save(`تقرير-${c.crop}-${c.name}.pdf`.replace(/\s+/g,'-'));
+  }catch(e){
+    alert('حدث خطأ أثناء إنشاء التقرير: ' + e.message);
+  }finally{
+    document.body.removeChild(report);
+  }
+}
+document.getElementById('pdf-export-btn').addEventListener('click', ()=> exportCasePDF(currentCase));
 
 /* ===================== قراءة صوتية (TTS) ===================== */
 document.getElementById('tts-btn').addEventListener('click', ()=>{

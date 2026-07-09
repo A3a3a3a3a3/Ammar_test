@@ -14,6 +14,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --soil:#1a2414; --soil2:#243019; --card:#f5efdd; --card-edge:#d8cca4; --ink:#25301c;
@@ -191,6 +193,7 @@
       <div class="notes-area" id="notes-area" style="display:none">
         <textarea id="note-input" class="note-input" placeholder="ملاحظتك الشخصية على هذه الحالة (اختياري)..."></textarea>
         <button class="note-save-btn" id="note-save-btn">💾 حفظ الملاحظة</button>
+        <button class="note-save-btn" id="pdf-export-btn" style="background:var(--amber-d);margin-right:6px;">📄 تصدير تقرير PDF</button>
       </div>
     </div>
     <button class="next-btn" id="next-btn">الحالة التالية ⟵</button>
@@ -248,6 +251,15 @@
       <p style="font-size:13px;color:#c9d6b8;text-align:center;">مسجّل الدخول كـ <b id="auth-current-email" style="color:#f2ecd9;"></b></p>
       <button class="auth-secondary" id="auth-logout-btn">تسجيل الخروج</button>
       <button class="auth-secondary" id="auth-close">إغلاق ✕</button>
+    </div>
+    <div id="auth-verify-area" style="display:none">
+      <p style="font-size:13px;color:#e0c08a;text-align:center;line-height:1.9;">
+        ✉️ أرسلنا رابط تفعيل إلى <b id="auth-verify-email" style="color:#f2ecd9;"></b><br>
+        افتح بريدك واضغط الرابط، ثم ارجع هنا واضغط "تحقّق الآن".
+      </p>
+      <button class="auth-primary" id="auth-recheck-btn">✔ تحقّق الآن</button>
+      <button class="auth-secondary" id="auth-resend-btn">إعادة إرسال رابط التفعيل</button>
+      <button class="auth-secondary" id="auth-verify-logout-btn">تسجيل الخروج</button>
     </div>
   </div>
 </div>
