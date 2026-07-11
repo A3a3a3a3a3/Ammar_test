@@ -212,6 +212,7 @@ async function renderAuthGate(){
       }
       await loadProgress();
       renderStats(); renderBadges();
+      buildCropSelect();
       buildCatBar();
       nextCase();
     }
@@ -246,6 +247,7 @@ if(fbAuth){
 /* ===================== حالة التطبيق ===================== */
 let progress = { total:0, correct:0, weakness:{}, seenIds:[], history:[], notes:{} };
 let activeCat = 'all';
+let activeCrop = 'all';
 let currentCase = null;
 
 async function loadProgress(){
@@ -336,7 +338,13 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 
 function buildCatBar(){
   const bar = document.getElementById('catbar');
-  const all = [['all','الكل'], ...Object.entries(CATS)];
+  // في وضع التدريب على محصول واحد، أظهر فقط الفئات (الأمراض/الآفات/الحالات الفسيولوجية...) الموجودة فعليًا لهذا المحصول
+  const relevantCats = activeCrop==='all'
+    ? Object.keys(CATS)
+    : Array.from(new Set(CASE_BANK.filter(c=>c.crop===activeCrop).map(c=>c.category)));
+  const all = [['all','الكل'], ...Object.entries(CATS).filter(([key])=>relevantCats.includes(key))];
+  // إن لم تعد الفئة الحالية متاحة ضمن المحصول المختار، ارجع إلى "الكل"
+  if(activeCat!=='all' && !relevantCats.includes(activeCat)) activeCat = 'all';
   bar.innerHTML='';
   all.forEach(([key,label])=>{
     const b = document.createElement('button');
@@ -347,8 +355,37 @@ function buildCatBar(){
   });
 }
 
+function buildCropSelect(){
+  const sel = document.getElementById('crop-select');
+  if(!sel) return;
+  const crops = Array.from(new Set(CASE_BANK.map(c=>c.crop))).sort((a,b)=>a.localeCompare(b,'ar'));
+  sel.innerHTML = '<option value="all">🌱 التدريب على كل المحاصيل</option>' +
+    crops.map(name=>`<option value="${name}">${name}</option>`).join('');
+  sel.value = activeCrop;
+  updateCropFocusLine();
+}
+
+function updateCropFocusLine(){
+  const line = document.getElementById('crop-focus-line');
+  if(!line) return;
+  if(activeCrop==='all'){ line.textContent=''; return; }
+  const count = CASE_BANK.filter(c=>c.crop===activeCrop && (activeCat==='all'||c.category===activeCat)).length;
+  line.textContent = `🔎 تدريب مركّز على "${activeCrop}" — ${count} حالة متاحة (كل الأمراض والآفات والحالات الفسيولوجية الخاصة به)`;
+}
+
+document.getElementById('crop-select').addEventListener('change', (e)=>{
+  activeCrop = e.target.value;
+  buildCatBar();      // حدّث الفئات المتاحة حسب المحصول
+  updateCropFocusLine();
+  nextCase();
+});
+
 function pickNextCase(pool){
-  pool = pool || (activeCat==='all' ? CASE_BANK : CASE_BANK.filter(c=>c.category===activeCat));
+  const matchesFilters = c => (activeCat==='all' || c.category===activeCat) && (activeCrop==='all' || c.crop===activeCrop);
+  pool = pool || CASE_BANK.filter(matchesFilters);
+  // شبكة أمان: إن لم توجد حالات مطابقة (مثلاً محصول بلا حالات في فئة معينة)، وسّع البحث تدريجيًا بدل توقف التطبيق
+  if(!pool.length && activeCrop!=='all') pool = CASE_BANK.filter(c=>c.crop===activeCrop);
+  if(!pool.length) pool = CASE_BANK;
   const unseen = pool.filter(c=>!progress.seenIds.includes(c.id));
   const weakCats = Object.entries(progress.weakness).sort((a,b)=>b[1]-a[1]).map(w=>w[0]);
   if(weakCats.length && Math.random()<0.35){

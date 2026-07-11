@@ -65,6 +65,12 @@
   .tab-btn{flex:1;text-align:center;padding:8px 4px;border-radius:9px;border:none;background:none;color:#b7c4a5;font-size:12px;font-weight:700;cursor:pointer;}
   .tab-btn.active{background:var(--amber);color:#fff;}
 
+  .crop-select{width:100%;padding:11px 13px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.25);
+    background:rgba(255,255,255,0.06);color:#f2ecd9;font-size:13.5px;font-weight:700;margin-bottom:6px;cursor:pointer;}
+  .crop-select option{background:#1a2414;color:#f2ecd9;}
+  body.light .crop-select{background:var(--surface);border-color:var(--surface-edge);color:#2b2416;}
+  body.light .crop-select option{background:#fff;color:#2b2416;}
+  .crop-focus-line{font-size:11px;color:#d9c497;text-align:center;margin-bottom:8px;min-height:14px;}
   .catbar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:10px;}
   .catbtn{font-size:10.5px;padding:5px 9px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);
     background:rgba(255,255,255,0.06);color:#dfe6d2;cursor:pointer;}
@@ -179,6 +185,10 @@
 
   <!-- ===== تبويب التدريب ===== -->
   <div id="view-train">
+    <select class="crop-select" id="crop-select">
+      <option value="all">🌱 التدريب على كل المحاصيل</option>
+    </select>
+    <div class="crop-focus-line" id="crop-focus-line"></div>
     <div class="catbar" id="catbar"></div>
     <div class="card">
       <div class="illus" id="illus-box"></div>
