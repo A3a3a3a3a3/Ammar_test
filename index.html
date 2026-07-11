@@ -16,6 +16,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
     --soil:#1a2414; --soil2:#243019; --card:#f5efdd; --card-edge:#d8cca4; --ink:#25301c;
@@ -35,7 +38,7 @@
   *{box-sizing:border-box;}
   body{
     margin:0; background:linear-gradient(160deg, var(--soil2) 0%, var(--soil) 60%);
-    color:var(--card); font-family:'Tahoma','Segoe UI',sans-serif; min-height:100vh; padding:14px 12px 40px;
+    color:var(--card); font-family:'Cairo','Tahoma','Segoe UI',sans-serif; min-height:100vh; padding:14px 12px 40px;
     transition:background .3s ease, color .3s ease;
   }
   .wrap{max-width:480px;margin:0 auto;}
@@ -55,6 +58,10 @@
   .stat b{display:block;font-size:18px;color:var(--gold);}
   .stat span{font-size:9.5px;color:#a9b696;}
   .weak{font-size:11px;color:#d9c497;text-align:center;margin-bottom:6px;min-height:14px;}
+  .welcome-banner{background:rgba(192,122,43,0.12);border:1px solid rgba(192,122,43,0.35);border-radius:12px;
+    padding:10px 14px;margin:0 0 12px;font-size:12.5px;line-height:1.8;color:#f2ecd9;text-align:center;}
+  .welcome-banner b{color:var(--gold);}
+  body.light .welcome-banner{background:rgba(192,122,43,0.08);color:#2b2416;}
 
   .badge-row{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;}
   .cert-btn{display:block;width:100%;margin:0 0 10px;padding:11px;border-radius:10px;border:none;
@@ -109,6 +116,13 @@
   .modal{position:fixed;inset:0;background:rgba(10,14,7,0.94);z-index:50;display:none;padding:16px 12px;overflow-y:auto;}
   .modal.show{display:block;}
   .modal-inner{max-width:480px;margin:0 auto;}
+  #auth-modal.show{display:flex;align-items:center;justify-content:center;}
+  #auth-modal .modal-inner{background:linear-gradient(165deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+    border:1px solid rgba(217,180,90,0.28);border-radius:22px;padding:28px 24px 24px;
+    box-shadow:0 34px 64px -22px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06);}
+  .auth-plant-banner{display:flex;justify-content:center;margin-bottom:6px;}
+  .auth-plant-banner svg{width:96px;height:96px;filter:drop-shadow(0 8px 14px rgba(0,0,0,0.4));}
+  body.light #auth-modal .modal-inner{background:#fffdf7;border-color:rgba(163,100,31,0.22);}
   .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
   .modal-head h2{font-size:17px;margin:0;color:#f2ecd9;}
   .modal-close{background:var(--amber);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;}
@@ -148,9 +162,212 @@
   .quiz-result .big{font-size:42px;font-weight:900;color:var(--gold);}
 
   footer{text-align:center;margin-top:16px;font-size:9.5px;color:#7a8a68;line-height:1.7;}
+
+  /* ===== شاشة الترحيب — الخطوة 1: مشهد اللقاء المتحرك ===== */
+  .intro-screen{position:fixed;inset:0;z-index:300;overflow:hidden;}
+  .intro-screen.hide{display:none;}
+  .intro-step{position:absolute;inset:0;overflow-y:auto;}
+  .intro-step[data-hidden="true"]{display:none;}
+
+  .scene-bg{position:absolute;inset:0;z-index:0;}
+  .scene-bg svg{width:100%;height:100%;}
+
+  #intro-step-1{
+    background:radial-gradient(circle at 50% 30%, rgba(217,180,90,0.10), transparent 55%),
+      linear-gradient(165deg, #223019 0%, #14190f 65%, #0f130a 100%);
+    display:flex;align-items:center;justify-content:center;}
+  .meet-stage{position:relative;z-index:1;width:100%;max-width:480px;padding:24px;text-align:center;}
+  .meet-avatars{position:relative;height:190px;display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:18px;}
+  .meet-avatar{width:140px;filter:drop-shadow(0 16px 20px rgba(0,0,0,0.5));}
+  .meet-avatar.male{animation:slideInRight 1.5s cubic-bezier(.2,.8,.2,1) forwards;}
+  .meet-avatar.female{animation:slideInLeft 1.5s cubic-bezier(.2,.8,.2,1) forwards;}
+  @keyframes slideInRight{from{transform:translateX(220%);opacity:0;} to{transform:translateX(0);opacity:1;}}
+  @keyframes slideInLeft{from{transform:translateX(-220%);opacity:0;} to{transform:translateX(0);opacity:1;}}
+  .meet-kicker{font-size:10px;letter-spacing:4px;color:#e3c46e;text-transform:uppercase;font-weight:700;
+    opacity:0;animation:fadeUp 1s ease forwards;animation-delay:1.5s;}
+  .meet-title{font-size:32px;margin:8px 0 4px;font-weight:900;
+    background:linear-gradient(95deg,#f7f1de 15%,#e3c46e 55%,#c07a2b 90%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    opacity:0;animation:fadeUp 1s ease forwards;animation-delay:1.65s;}
+  .meet-sub{font-size:12.5px;color:#9fb08a;font-weight:700;margin:0 0 22px;
+    opacity:0;animation:fadeUp 1s ease forwards;animation-delay:1.8s;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);}}
+  .step-next-btn{padding:13px 34px;border:none;border-radius:14px;background:linear-gradient(95deg,#d9b45a,#c07a2b);
+    color:#241a08;font-weight:900;font-size:14.5px;cursor:pointer;
+    box-shadow:0 14px 26px -10px rgba(192,122,43,0.65);
+    opacity:0;animation:fadeUp 1s ease forwards;animation-delay:2.05s;}
+
+  /* ===== شاشة الترحيب — الخطوة 2: الرسالة والملخص ===== */
+  #intro-step-2{
+    background:radial-gradient(circle at 85% 90%, rgba(168,64,42,0.14), transparent 48%),
+      linear-gradient(165deg, #241c14 0%, #17120c 70%, #100c08 100%);}
+  .welcome-stage{position:relative;z-index:1;min-height:100%;display:flex;align-items:center;justify-content:center;padding:34px 18px;}
+  .welcome-inner{max-width:460px;margin:0 auto;text-align:center;}
+  .welcome-heading{font-size:24px;font-weight:900;color:#f2ecd9;margin:0 0 4px;}
+  .welcome-heading b{color:#e3c46e;}
+  .botanical-divider{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px auto 18px;width:180px;}
+  .botanical-divider .line{flex:1;height:1px;background:linear-gradient(90deg,transparent,#d9b45a66,transparent);}
+  .botanical-divider svg{width:16px;height:16px;flex:0 0 auto;}
+  .welcome-desc{font-size:13.5px;line-height:2.05;color:#d3ddc4;margin:0 0 20px;text-align:right;}
+  .welcome-desc b{color:#e3c46e;font-weight:800;}
+  .welcome-points{text-align:right;margin:0 0 26px;display:flex;flex-direction:column;gap:9px;}
+  .welcome-point{display:flex;align-items:flex-start;gap:9px;background:linear-gradient(155deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015));
+    border:1px solid rgba(217,180,90,0.2);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#f2ecd9;line-height:1.7;}
+  .welcome-point .wp-dot{flex:0 0 auto;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#c07a2b,#8a5a1e);font-size:11px;margin-top:1px;}
+  .intro-note{font-size:10.5px;color:#7f9569;margin-top:10px;}
+
+  body.light #intro-step-1{background:radial-gradient(circle at 50% 30%, rgba(217,180,90,0.12), transparent 55%),
+      linear-gradient(165deg, #fbf6e8 0%, #f3e9c8 100%);}
+  body.light #intro-step-2{background:radial-gradient(circle at 85% 90%, rgba(168,64,42,0.10), transparent 48%),
+      linear-gradient(165deg, #fbf6e8 0%, #f3e9c8 100%);}
+  body.light .welcome-heading{color:#2b2416;}
+  body.light .welcome-desc{color:#4a4530;}
+  body.light .welcome-point{background:linear-gradient(155deg, rgba(37,48,28,0.05), rgba(37,48,28,0.02));border-color:rgba(163,100,31,0.25);color:#2b2416;}
+  body.light .meet-sub{color:#5f7a4f;}
+  body.light .intro-note{color:#6b7a58;}
 </style>
 </head>
 <body>
+
+<div class="intro-screen" id="intro-screen">
+
+  <!-- ===== الخطوة 1: مشهد اللقاء (نخيل بالخلفية) ===== -->
+  <div class="intro-step" id="intro-step-1">
+    <div class="scene-bg">
+      <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
+        <rect width="400" height="300" fill="none"/>
+        <path d="M60,300 L64,150" stroke="#3a3018" stroke-width="10" fill="none" stroke-linecap="round"/>
+        <path d="M64,150 Q40,120 15,128 M64,150 Q88,118 115,124 M64,150 Q45,100 30,70 M64,150 Q84,100 100,68 M64,150 Q64,95 64,55"
+          stroke="#3f5a2e" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.55"/>
+        <path d="M336,300 L332,140" stroke="#3a3018" stroke-width="11" fill="none" stroke-linecap="round"/>
+        <path d="M332,140 Q305,108 278,116 M332,140 Q358,106 386,112 M332,140 Q312,88 296,56 M332,140 Q353,88 370,54 M332,140 Q332,82 332,40"
+          stroke="#3f5a2e" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.55"/>
+        <ellipse cx="200" cy="300" rx="220" ry="18" fill="#1c2412" opacity="0.6"/>
+      </svg>
+    </div>
+    <div class="meet-stage">
+      <div class="meet-avatars">
+        <svg viewBox="0 0 160 200" class="meet-avatar female">
+          <defs>
+            <linearGradient id="coatGradF" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fbfaf5"/><stop offset="100%" stop-color="#e6e4da"/>
+            </linearGradient>
+            <radialGradient id="roseGradM" cx="45%" cy="32%" r="68%">
+              <stop offset="0%" stop-color="#e28f6c"/><stop offset="55%" stop-color="#c65a42"/><stop offset="100%" stop-color="#8a3220"/>
+            </radialGradient>
+          </defs>
+          <path d="M28,198 C22,140 34,102 80,96 C126,102 138,140 132,198 Z" fill="url(#coatGradF)" stroke="#c9c6b8" stroke-width="1.5"/>
+          <path d="M58,102 L80,124 L102,102" fill="none" stroke="#a3641f" stroke-width="3"/>
+          <path d="M58,102 L52,150 M102,102 L108,150" stroke="#d8d4c4" stroke-width="2" fill="none"/>
+          <rect x="90" y="128" width="15" height="19" rx="2" fill="#f5efdd" stroke="#a3641f" stroke-width="1.3"/>
+          <path d="M32,44 Q18,28 28,10" stroke="#7a9160" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M128,44 Q142,28 132,10" stroke="#7a9160" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <g transform="translate(80 64)">
+            <circle r="32" fill="url(#roseGradM)"/>
+            <path d="M0,-25 C12,-21 17,-10 10,0 C4,-6 -4,-6 -10,0 C-17,-10 -12,-21 0,-25Z" fill="#a8402a" opacity="0.55"/>
+            <circle r="7.5" fill="#f0d0c0"/>
+          </g>
+          <circle cx="30" cy="168" r="10" fill="none" stroke="#5f7a4f" stroke-width="3"/>
+          <line x1="37" y1="175" x2="46" y2="184" stroke="#5f7a4f" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <svg viewBox="0 0 160 200" class="meet-avatar male">
+          <defs>
+            <linearGradient id="coatGradM" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fbfaf5"/><stop offset="100%" stop-color="#e6e4da"/>
+            </linearGradient>
+            <radialGradient id="sunGradM" cx="45%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#f0c96a"/><stop offset="60%" stop-color="#d9a036"/><stop offset="100%" stop-color="#a3641f"/>
+            </radialGradient>
+          </defs>
+          <path d="M28,198 C22,138 35,100 80,94 C125,100 138,138 132,198 Z" fill="url(#coatGradM)" stroke="#c9c6b8" stroke-width="1.5"/>
+          <path d="M56,100 L80,122 L104,100" fill="none" stroke="#a3641f" stroke-width="3"/>
+          <path d="M56,100 L50,150 M104,100 L110,150" stroke="#d8d4c4" stroke-width="2" fill="none"/>
+          <rect x="88" y="126" width="16" height="20" rx="2" fill="#f5efdd" stroke="#a3641f" stroke-width="1.3"/>
+          <g transform="translate(80 62)">
+            <g fill="#c8862f">
+              <ellipse cx="0" cy="-34" rx="7" ry="13"/><ellipse cx="0" cy="34" rx="7" ry="13"/>
+              <ellipse cx="34" cy="0" rx="13" ry="7"/><ellipse cx="-34" cy="0" rx="13" ry="7"/>
+              <ellipse cx="24" cy="-24" rx="7" ry="13" transform="rotate(45 24 -24)"/>
+              <ellipse cx="-24" cy="-24" rx="7" ry="13" transform="rotate(-45 -24 -24)"/>
+              <ellipse cx="24" cy="24" rx="7" ry="13" transform="rotate(-45 24 24)"/>
+              <ellipse cx="-24" cy="24" rx="7" ry="13" transform="rotate(45 -24 24)"/>
+            </g>
+            <circle r="21" fill="url(#sunGradM)"/>
+          </g>
+          <circle cx="130" cy="168" r="10" fill="none" stroke="#5f7a4f" stroke-width="3"/>
+          <line x1="123" y1="175" x2="114" y2="184" stroke="#5f7a4f" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="meet-kicker">CAREER-READY AGRICULTURAL TRAINING</div>
+      <div class="meet-title">عيادة المحصول</div>
+      <div class="meet-sub">حيث يلتقي مهندسو وخريجو الزراعة على طريق واحد نحو سوق العمل</div>
+      <button class="step-next-btn" id="step1-next-btn">التالي ←</button>
+    </div>
+  </div>
+
+  <!-- ===== الخطوة 2: الرسالة الترحيبية (شجرة تفاح بالخلفية) ===== -->
+  <div class="intro-step" id="intro-step-2" data-hidden="true">
+    <div class="scene-bg" style="opacity:0.5;">
+      <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
+        <path d="M340,300 L336,190" stroke="#3a2c18" stroke-width="12" fill="none" stroke-linecap="round"/>
+        <circle cx="336" cy="150" r="68" fill="#3f5a2e" opacity="0.45"/>
+        <circle cx="296" cy="130" r="46" fill="#3f5a2e" opacity="0.4"/>
+        <circle cx="376" cy="135" r="50" fill="#3f5a2e" opacity="0.4"/>
+        <circle cx="310" cy="120" r="6" fill="#a8402a" opacity="0.7"/>
+        <circle cx="355" cy="110" r="6" fill="#a8402a" opacity="0.7"/>
+        <circle cx="330" cy="160" r="6" fill="#a8402a" opacity="0.7"/>
+        <circle cx="365" cy="150" r="6" fill="#a8402a" opacity="0.7"/>
+        <circle cx="300" cy="165" r="6" fill="#a8402a" opacity="0.7"/>
+        <ellipse cx="330" cy="300" rx="140" ry="14" fill="#1c1a10" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="welcome-stage">
+      <div class="welcome-inner">
+        <div class="welcome-heading">أخوتي وأخواتي <b>المهندسين الزراعيين</b>...</div>
+        <div class="botanical-divider">
+          <span class="line"></span>
+          <svg viewBox="0 0 24 24"><path d="M12,2 C6,6 6,14 12,22 C18,14 18,6 12,2 Z" fill="#d9b45a" opacity="0.85"/><path d="M12,4 L12,20" stroke="#7a4e18" stroke-width="1" opacity="0.5"/></svg>
+          <span class="line"></span>
+        </div>
+        <p class="welcome-desc">
+          كل واحد فينا مرّ بنفس اللحظة: تخرّجنا وبإيدنا شهادة، بس حسّينا إنه الطريق لسوق العمل الحقيقي — أو لدخول <b>دورة النقابة</b> وفتح صيدلية أو مستودع زراعي — لسا طويل ومليان أسئلة ما حدا جاوبنا عنها بالجامعة.
+          "عيادة المحصول" مو بس تطبيق، هي محاولة صادقة نختصر فيها هالطريق على بعض، ونبني فيها مع بعض معرفة عملية حقيقية، من حالات ميدانية واقعية، لنوصل يوم دخولنا الميدان أو المقابلة أو الدورة الرسمية ونحنا واثقين من نفسنا، مو خايفين من سؤال.
+          هاي أهم النقاط يلي رح تلاقوها بالمنصة:
+        </p>
+        <div class="welcome-points">
+          <div class="welcome-point"><span class="wp-dot">🩺</span><span>بنك حالات تشخيصية واسع: أمراض فطرية، آفات حشرية، نقص عناصر، وحالات فسيولوجية عبر عشرات المحاصيل.</span></div>
+          <div class="welcome-point"><span class="wp-dot">📝</span><span>اختبار محاكاة زمني بلا تلميحات، يحاكي أجواء امتحان التخرج أو مقابلة التوظيف الحقيقية.</span></div>
+          <div class="welcome-point"><span class="wp-dot">🎓</span><span>شهادة إتمام تدريب قابلة للتحميل، تقدر تحطها بسيرتك الذاتية أو ملفك المهني.</span></div>
+          <div class="welcome-point"><span class="wp-dot">📡</span><span>يعمل بالكامل بدون إنترنت — لأن مكاننا الطبيعي كمهندسين زراعيين غالبًا الحقل، مو خلف مكتب.</span></div>
+          <div class="welcome-point"><span class="wp-dot">📄</span><span>تصدير تقارير ميدانية احترافية بصيغة PDF، وحفظ ملاحظاتك الشخصية على كل حالة.</span></div>
+          <div class="welcome-point"><span class="wp-dot">🏅</span><span>لوحة صدارة وشارات إنجاز تحفّزك تكمّل رحلتك خطوة خطوة، بدل ما توقف بالنص.</span></div>
+        </div>
+        <button class="intro-cta" id="intro-cta-btn">لننطلق نحو التأهيل 🚀</button>
+        <div class="intro-note">مجاني بالكامل — بدون بطاقة دفع، بدون التزامات</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  // فحص فوري (قبل أي رسم) — لو الزائر شاف المقدمة قبل، أخفها فورًا بدون وميض
+  try{
+    if(localStorage.getItem('crop-clinic-seen-intro')==='1'){
+      document.getElementById('intro-screen').classList.add('hide');
+    }
+  }catch(e){}
+</script>
+<script>
+  (function(){
+    var s1btn = document.getElementById('step1-next-btn');
+    if(s1btn) s1btn.addEventListener('click', function(){
+      document.getElementById('intro-step-1').dataset.hidden = 'true';
+      document.getElementById('intro-step-2').dataset.hidden = 'false';
+    });
+  })();
+</script>
+
 <div class="wrap" id="app-wrap" style="display:none">
   <div class="authbar">
     <span id="auth-status">مسجّل الدخول</span>
@@ -162,11 +379,14 @@
     </div>
   </div>
 
+
   <header>
     <div class="eyebrow">CAREER-READY AGRICULTURAL TRAINING</div>
     <h1>عيادة المحصول</h1>
     <p id="bank-count">منصة تأهيل وتدريب مهندسي الزراعة لسوق العمل — تشخيص ميداني وتحضير عملي، تعمل بالكامل بدون إنترنت</p>
   </header>
+
+  <div class="welcome-banner" id="welcome-banner" style="display:none;"></div>
 
   <div class="stats">
     <div class="stat"><b id="st-total">0</b><span>حالة</span></div>
@@ -251,6 +471,23 @@
 
 <div class="modal show" id="auth-modal" style="z-index:200;">
   <div class="modal-inner">
+    <div class="auth-plant-banner">
+      <svg viewBox="0 0 120 120">
+        <defs>
+          <linearGradient id="potGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c8862f"/><stop offset="100%" stop-color="#8a5a1e"/>
+          </linearGradient>
+        </defs>
+        <path d="M38,100 L82,100 L76,118 L44,118 Z" fill="url(#potGrad)"/>
+        <path d="M60,100 C60,80 44,72 40,50 M60,100 C60,78 76,70 80,48 M60,100 C60,74 60,60 60,36"
+          stroke="#4d7a3a" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <circle cx="40" cy="46" r="8" fill="#a8402a"/><circle cx="80" cy="44" r="8" fill="#c65a42"/>
+        <circle cx="60" cy="32" r="9" fill="#a8402a"/>
+        <path d="M40,46 Q34,38 40,30 Q46,38 40,46Z" fill="#5f9145"/>
+        <path d="M80,44 Q86,36 80,28 Q74,36 80,44Z" fill="#5f9145"/>
+        <path d="M60,32 Q54,22 60,14 Q66,22 60,32Z" fill="#5f9145"/>
+      </svg>
+    </div>
     <div class="modal-head"><h2 id="auth-title">تسجيل الدخول مطلوب</h2></div>
     <p style="font-size:12.5px;color:#b7c4a5;text-align:center;margin-top:-4px;">هذا الموقع يتطلب حسابًا لعرض المحتوى.</p>
     <div id="auth-form-area">

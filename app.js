@@ -33,25 +33,92 @@ function defaultShape(cat){
 }
 
 let lastCaseLoadError = '';
+const LOCAL_CACHE_KEY = 'crop-clinic-case-bank-v1';
+
+function saveCaseBankToLocalCache(){
+  try{
+    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({
+      cases: CASE_BANK, facts: FACT_INDEX, prevention: PREVENTION, savedAt: Date.now()
+    }));
+  }catch(e){ console.warn('تعذر حفظ نسخة احتياطية محلية من بنك الحالات:', e.message); }
+}
+
+function loadCaseBankFromLocalCache(){
+  try{
+    const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(!data.cases || !data.cases.length) return false;
+    CASE_BANK = data.cases;
+    FACT_INDEX = data.facts || [];
+    PREVENTION = data.prevention || {};
+    return true;
+  }catch(e){ return false; }
+}
+
+async function fetchCaseDataOnce(){
+  const [casesSnap, factsSnap, prevDoc] = await Promise.all([
+    fbDb.collection('cases').get(),
+    fbDb.collection('facts').get(),
+    fbDb.collection('meta').doc('prevention').get()
+  ]);
+  CASE_BANK = casesSnap.docs.map(d=>d.data()).sort((a,b)=>a.id-b.id);
+  FACT_INDEX = factsSnap.docs.map(d=>d.data());
+  PREVENTION = prevDoc.exists ? prevDoc.data() : {};
+  return CASE_BANK.length > 0;
+}
+
+// يحاول التحميل من الشبكة بصمت (بدون لمس واجهة المستخدم)، ويحدّث النسخة المحلية إن نجح.
+// يُستخدم للتحديث بالخلفية بعد الاعتماد على نسخة محلية قديمة.
+function scheduleBackgroundRefresh(){
+  const tryRefresh = async ()=>{
+    if(!fbDb) return;
+    try{
+      const ok = await fetchCaseDataOnce();
+      if(ok){
+        saveCaseBankToLocalCache();
+        const el = document.getElementById('bank-count');
+        if(el) el.textContent = `${CASE_BANK.length} حالة تشخيصية — تم تحديث البيانات ✔`;
+        console.info('تم تحديث بنك الحالات بالخلفية بنجاح.');
+      }
+    }catch(e){ /* صامت — نحاول لاحقًا عند رجوع الاتصال */ }
+  };
+  window.addEventListener('online', tryRefresh, { once:true });
+  // محاولة إضافية بعد 30 ثانية احتياطًا (بعض الأجهزة لا تُطلق حدث 'online' بدقة)
+  setTimeout(tryRefresh, 30000);
+}
 
 async function loadCaseDataFromFirestore(){
   if(!fbDb) return false;
-  try{
-    const [casesSnap, factsSnap, prevDoc] = await Promise.all([
-      fbDb.collection('cases').get(),
-      fbDb.collection('facts').get(),
-      fbDb.collection('meta').doc('prevention').get()
-    ]);
-    CASE_BANK = casesSnap.docs.map(d=>d.data()).sort((a,b)=>a.id-b.id);
-    FACT_INDEX = factsSnap.docs.map(d=>d.data());
-    PREVENTION = prevDoc.exists ? prevDoc.data() : {};
-    document.getElementById('bank-count').textContent = `${CASE_BANK.length} حالة تشخيصية — محمية بتسجيل الدخول`;
-    return CASE_BANK.length > 0;
-  }catch(e){
-    lastCaseLoadError = (e && (e.code || e.message)) ? `[${e.code||''}] ${e.message||e}` : String(e);
-    console.error('تعذر جلب بيانات الحالات من Firestore:', lastCaseLoadError);
-    return false;
+  const MAX_ATTEMPTS = 3;
+  for(let attempt=1; attempt<=MAX_ATTEMPTS; attempt++){
+    try{
+      const ok = await fetchCaseDataOnce();
+      if(ok){
+        document.getElementById('bank-count').textContent = `${CASE_BANK.length} حالة تشخيصية — محمية بتسجيل الدخول`;
+        saveCaseBankToLocalCache();
+        return true;
+      } else {
+        lastCaseLoadError = 'البنك فارغ (0 حالة) في قاعدة البيانات';
+        break; // ما في داعي نعيد المحاولة إذا كان البنك فارغ فعليًا، المشكلة مو اتصال
+      }
+    }catch(e){
+      lastCaseLoadError = (e && (e.code || e.message)) ? `[${e.code||''}] ${e.message||e}` : String(e);
+      console.warn(`محاولة تحميل بنك الحالات رقم ${attempt}/${MAX_ATTEMPTS} فشلت:`, lastCaseLoadError);
+      if(attempt < MAX_ATTEMPTS){
+        await new Promise(r=>setTimeout(r, attempt*1200)); // تأخير متزايد قبل إعادة المحاولة
+      }
+    }
   }
+  // فشلت كل المحاولات المباشرة — جرّب الرجوع لنسخة محفوظة محليًا من زيارة سابقة ناجحة
+  if(loadCaseBankFromLocalCache()){
+    document.getElementById('bank-count').textContent =
+      `${CASE_BANK.length} حالة (نسخة محفوظة محليًا — سيتم التحديث تلقائيًا عند توفر الاتصال) ⚠️`;
+    scheduleBackgroundRefresh();
+    return true;
+  }
+  console.error('تعذر جلب بيانات الحالات من Firestore بعد كل المحاولات، ولا توجد نسخة محلية محفوظة:', lastCaseLoadError);
+  return false;
 }
 
 /* ===================== SVG توضيحي ===================== */
@@ -146,6 +213,15 @@ try{
 
 let authMode = 'login'; // login | signup
 
+/* ===================== شاشة الترحيب التعريفية ===================== */
+const introCtaBtn = document.getElementById('intro-cta-btn');
+if(introCtaBtn){
+  introCtaBtn.addEventListener('click', ()=>{
+    document.getElementById('intro-screen').classList.add('hide');
+    try{ localStorage.setItem('crop-clinic-seen-intro', '1'); }catch(e){}
+  });
+}
+
 function openAuthModal(){ document.getElementById('auth-modal').classList.add('show'); }
 function closeAuthModal(){ document.getElementById('auth-modal').classList.remove('show'); }
 document.getElementById('auth-open-btn').addEventListener('click', openAuthModal);
@@ -207,7 +283,7 @@ async function renderAuthGate(){
     document.getElementById('auth-current-email').textContent = user.email;
 
     if(CASE_BANK.length === 0){
-      document.getElementById('bank-count').textContent = '...جارٍ تحميل بيانات الحالات من حسابك';
+      document.getElementById('bank-count').textContent = '...جارٍ تحميل بيانات الحالات (قد يعيد المحاولة تلقائيًا عند ضعف الشبكة)';
       const ok = await loadCaseDataFromFirestore();
       if(!ok || CASE_BANK.length === 0){
         const reason = lastCaseLoadError ? `(${lastCaseLoadError})` : '(البنك فارغ أو لم يتم إرجاع أي حالات)';
