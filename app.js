@@ -32,6 +32,8 @@ function defaultShape(cat){
   return 'leaf';
 }
 
+let lastCaseLoadError = '';
+
 async function loadCaseDataFromFirestore(){
   if(!fbDb) return false;
   try{
@@ -46,7 +48,8 @@ async function loadCaseDataFromFirestore(){
     document.getElementById('bank-count').textContent = `${CASE_BANK.length} حالة تشخيصية — محمية بتسجيل الدخول`;
     return CASE_BANK.length > 0;
   }catch(e){
-    console.error('تعذر جلب بيانات الحالات من Firestore:', e.message);
+    lastCaseLoadError = (e && (e.code || e.message)) ? `[${e.code||''}] ${e.message||e}` : String(e);
+    console.error('تعذر جلب بيانات الحالات من Firestore:', lastCaseLoadError);
     return false;
   }
 }
@@ -207,7 +210,12 @@ async function renderAuthGate(){
       document.getElementById('bank-count').textContent = '...جارٍ تحميل بيانات الحالات من حسابك';
       const ok = await loadCaseDataFromFirestore();
       if(!ok || CASE_BANK.length === 0){
-        document.getElementById('bank-count').textContent = 'تعذر تحميل بيانات الحالات. تأكد من إجراء الترحيل (seed) وقواعد الأمان بشكل صحيح.';
+        const reason = lastCaseLoadError ? `(${lastCaseLoadError})` : '(البنك فارغ أو لم يتم إرجاع أي حالات)';
+        document.getElementById('bank-count').innerHTML =
+          `تعذر تحميل بيانات الحالات ${reason}. تأكد من اتصال الإنترنت وقواعد الأمان. ` +
+          `<button id="retry-load-btn" style="margin-inline-start:6px;padding:2px 10px;border-radius:12px;border:1px solid currentColor;background:none;color:inherit;font-size:11px;cursor:pointer;">إعادة المحاولة 🔄</button>`;
+        const retryBtn = document.getElementById('retry-load-btn');
+        if(retryBtn) retryBtn.addEventListener('click', renderAuthGate);
         return;
       }
       await loadProgress();
