@@ -328,6 +328,12 @@ function computeBadges(){
 function renderBadges(){
   const row = document.getElementById('badge-row');
   row.innerHTML = computeBadges().map(b=>`<span class="badge-chip ${b.earned?'earned':''}">${b.earned?'🏅 ':'🔒 '}${b.label}</span>`).join('');
+  const certBtn = document.getElementById('cert-btn');
+  if(certBtn){
+    const acc = progress.total ? Math.round(100*progress.correct/progress.total) : 0;
+    const eligible = progress.total >= 30 && acc >= 60;
+    certBtn.style.display = eligible ? 'block' : 'none';
+  }
 }
 
 /* ===================== تبويبات ===================== */
@@ -518,6 +524,59 @@ async function exportCasePDF(c){
   }
 }
 document.getElementById('pdf-export-btn').addEventListener('click', ()=> exportCasePDF(currentCase));
+
+/* ===================== شهادة إتمام التدريب ===================== */
+async function exportCertificatePDF(){
+  if(!window.html2canvas || !window.jspdf){ alert('تعذر تحميل أداة التصدير، تأكد من اتصالك بالإنترنت وحاول مجددًا.'); return; }
+  const name = (fbUser && fbUser.email) ? fbUser.email.split('@')[0] : 'متدرّب';
+  const acc = progress.total ? Math.round(100*progress.correct/progress.total) : 0;
+  const today = new Date().toLocaleDateString('ar-EG');
+  const weakSorted = Object.entries(progress.weakness).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const strongAreas = Object.keys(CATS).filter(k=>!weakSorted.some(w=>w[0]===k)).map(k=>CATS[k]).slice(0,4);
+
+  const cert = document.createElement('div');
+  cert.style.cssText = 'position:fixed;top:-9999px;left:0;width:700px;background:#fdf9ef;color:#25301c;padding:40px;font-family:Tahoma,sans-serif;direction:rtl;border:6px solid #c07a2b;';
+  cert.innerHTML = `
+    <div style="text-align:center;border-bottom:2px solid #d8cca4;padding-bottom:16px;margin-bottom:20px;">
+      <div style="font-size:11px;letter-spacing:3px;color:#a3641f;">CROP CLINIC — CAREER-READY AGRICULTURAL TRAINING</div>
+      <div style="font-size:26px;font-weight:900;margin-top:8px;">عيادة المحصول</div>
+      <div style="font-size:14px;color:#5a4d2c;margin-top:4px;">شهادة إتمام تدريب ذاتي</div>
+    </div>
+    <p style="text-align:center;font-size:13.5px;line-height:2;color:#3a3020;">تشهد منصة "عيادة المحصول" أن</p>
+    <div style="text-align:center;font-size:22px;font-weight:900;color:#a3641f;margin:8px 0 14px;">${name}</div>
+    <p style="text-align:center;font-size:13.5px;line-height:2;color:#3a3020;">
+      أتمّ برنامج تدريب ذاتي بالتشخيص الزراعي الميداني عبر المنصة، بواقع
+      <b>${progress.total}</b> حالة تشخيصية بدقة إجابة <b>${acc}%</b>،
+      شملت التعرف على الأمراض الفطرية، الآفات الحشرية، نقص العناصر الغذائية، والحالات الفسيولوجية عبر عدة محاصيل.
+    </p>
+    ${strongAreas.length ? `<p style="text-align:center;font-size:12.5px;color:#5f7a4f;margin-top:10px;">مجالات إتقان ملحوظة: ${strongAreas.join(' · ')}</p>` : ''}
+    <div style="margin-top:26px;padding-top:14px;border-top:1px dashed #d8cca4;display:flex;justify-content:space-between;font-size:11px;color:#8a7d55;">
+      <span>التاريخ: ${today}</span>
+      <span>منصة عيادة المحصول</span>
+    </div>
+    <p style="margin-top:16px;font-size:9.5px;color:#a3641f;text-align:center;line-height:1.7;">
+      هذه شهادة توثّق إتمام تدريب ذاتي عبر المنصة، ولا تُعد اعتمادًا أكاديميًا أو نقابيًا رسميًا من أي جهة.
+    </p>
+  `;
+  document.body.appendChild(cert);
+  try{
+    const canvas = await html2canvas(cert, {scale:2, backgroundColor:'#fdf9ef'});
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('l','mm','a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    pdf.save(`شهادة-عيادة-المحصول-${name}.pdf`.replace(/\s+/g,'-'));
+  }catch(e){
+    alert('حدث خطأ أثناء إنشاء الشهادة: ' + e.message);
+  }finally{
+    document.body.removeChild(cert);
+  }
+}
+const certBtnEl = document.getElementById('cert-btn');
+if(certBtnEl) certBtnEl.addEventListener('click', exportCertificatePDF);
 
 /* ===================== قراءة صوتية (TTS) ===================== */
 document.getElementById('tts-btn').addEventListener('click', ()=>{
