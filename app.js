@@ -373,12 +373,17 @@ function updateCropFocusLine(){
   line.textContent = `🔎 تدريب مركّز على "${activeCrop}" — ${count} حالة متاحة (كل الأمراض والآفات والحالات الفسيولوجية الخاصة به)`;
 }
 
-document.getElementById('crop-select').addEventListener('change', (e)=>{
-  activeCrop = e.target.value;
-  buildCatBar();      // حدّث الفئات المتاحة حسب المحصول
-  updateCropFocusLine();
-  nextCase();
-});
+const cropSelectEl = document.getElementById('crop-select');
+if(cropSelectEl){
+  cropSelectEl.addEventListener('change', (e)=>{
+    activeCrop = e.target.value;
+    buildCatBar();      // حدّث الفئات المتاحة حسب المحصول
+    updateCropFocusLine();
+    nextCase();
+  });
+} else {
+  console.warn('عنصر #crop-select غير موجود في index-1.html — تأكد من نسخ ملف الـ HTML الجديد كاملاً.');
+}
 
 function pickNextCase(pool){
   const matchesFilters = c => (activeCat==='all' || c.category===activeCat) && (activeCrop==='all' || c.crop===activeCrop);
