@@ -167,7 +167,7 @@
   .intro-screen{position:fixed;inset:0;z-index:300;overflow:hidden;}
   .intro-screen.hide{display:none;}
   .intro-step{position:absolute;inset:0;overflow-y:auto;}
-  .intro-step[data-hidden="true"]{display:none;}
+  .intro-step.step-hidden{display:none !important;}
 
   .scene-bg{position:absolute;inset:0;z-index:0;}
   .scene-bg svg{width:100%;height:100%;}
@@ -179,23 +179,23 @@
   .meet-stage{position:relative;z-index:1;width:100%;max-width:480px;padding:24px;text-align:center;}
   .meet-avatars{position:relative;height:190px;display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:18px;}
   .meet-avatar{width:140px;filter:drop-shadow(0 16px 20px rgba(0,0,0,0.5));}
-  .meet-avatar.male{animation:slideInRight 1.5s cubic-bezier(.2,.8,.2,1) forwards;}
-  .meet-avatar.female{animation:slideInLeft 1.5s cubic-bezier(.2,.8,.2,1) forwards;}
-  @keyframes slideInRight{from{transform:translateX(220%);opacity:0;} to{transform:translateX(0);opacity:1;}}
-  @keyframes slideInLeft{from{transform:translateX(-220%);opacity:0;} to{transform:translateX(0);opacity:1;}}
+  .meet-avatar.male{animation:slideInRight 3s cubic-bezier(.16,.9,.2,1) forwards;}
+  .meet-avatar.female{animation:slideInLeft 3s cubic-bezier(.16,.9,.2,1) forwards;}
+  @keyframes slideInRight{0%{transform:translateX(220%);opacity:0;} 70%{opacity:1;} 100%{transform:translateX(0);opacity:1;}}
+  @keyframes slideInLeft{0%{transform:translateX(-220%);opacity:0;} 70%{opacity:1;} 100%{transform:translateX(0);opacity:1;}}
   .meet-kicker{font-size:10px;letter-spacing:4px;color:#e3c46e;text-transform:uppercase;font-weight:700;
-    opacity:0;animation:fadeUp 1s ease forwards;animation-delay:1.5s;}
+    opacity:0;animation:fadeUp 1.2s ease forwards;animation-delay:3.1s;}
   .meet-title{font-size:32px;margin:8px 0 4px;font-weight:900;
     background:linear-gradient(95deg,#f7f1de 15%,#e3c46e 55%,#c07a2b 90%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
-    opacity:0;animation:fadeUp 1s ease forwards;animation-delay:1.65s;}
+    opacity:0;animation:fadeUp 1.2s ease forwards;animation-delay:3.35s;}
   .meet-sub{font-size:12.5px;color:#9fb08a;font-weight:700;margin:0 0 22px;
-    opacity:0;animation:fadeUp 1s ease forwards;animation-delay:1.8s;}
+    opacity:0;animation:fadeUp 1.2s ease forwards;animation-delay:3.6s;}
   @keyframes fadeUp{from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);}}
   .step-next-btn{padding:13px 34px;border:none;border-radius:14px;background:linear-gradient(95deg,#d9b45a,#c07a2b);
     color:#241a08;font-weight:900;font-size:14.5px;cursor:pointer;
     box-shadow:0 14px 26px -10px rgba(192,122,43,0.65);
-    opacity:0;animation:fadeUp 1s ease forwards;animation-delay:2.05s;}
+    opacity:0;animation:fadeUp 1.2s ease forwards;animation-delay:4s;}
 
   /* ===== شاشة الترحيب — الخطوة 2: الرسالة والملخص ===== */
   #intro-step-2{
@@ -307,7 +307,7 @@
   </div>
 
   <!-- ===== الخطوة 2: الرسالة الترحيبية (شجرة تفاح بالخلفية) ===== -->
-  <div class="intro-step" id="intro-step-2" data-hidden="true">
+  <div class="intro-step step-hidden" id="intro-step-2">
     <div class="scene-bg" style="opacity:0.5;">
       <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
         <path d="M340,300 L336,190" stroke="#3a2c18" stroke-width="12" fill="none" stroke-linecap="round"/>
@@ -362,8 +362,8 @@
   (function(){
     var s1btn = document.getElementById('step1-next-btn');
     if(s1btn) s1btn.addEventListener('click', function(){
-      document.getElementById('intro-step-1').dataset.hidden = 'true';
-      document.getElementById('intro-step-2').dataset.hidden = 'false';
+      document.getElementById('intro-step-1').classList.add('step-hidden');
+      document.getElementById('intro-step-2').classList.remove('step-hidden');
     });
   })();
 </script>
