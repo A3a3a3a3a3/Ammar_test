@@ -127,6 +127,10 @@
   .modal-head h2{font-size:17px;margin:0;color:#f2ecd9;}
   .modal-close{background:var(--amber);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;}
   .guide-group{margin-bottom:14px;}
+  .guide-table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px;}
+  .guide-table th,.guide-table td{border:1px solid var(--card-edge);padding:6px 8px;text-align:center;color:var(--ink);background:var(--card);}
+  .guide-table th{background:var(--amber);color:#fff;font-weight:800;}
+  .license-guide-btn{background:linear-gradient(90deg, rgba(95,122,79,0.18), rgba(95,122,79,0.06));border-color:rgba(95,122,79,0.4);}
   .guide-group h3{font-size:13px;color:#d9c497;margin:0 0 6px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px;}
   .guide-item{background:var(--card);color:var(--ink);border-radius:9px;padding:9px 11px;margin-bottom:6px;font-size:12.5px;line-height:1.7;}
   .guide-item b{display:block;font-size:13px;margin-bottom:2px;}
@@ -163,6 +167,59 @@
 
   footer{text-align:center;margin-top:16px;font-size:9.5px;color:#7a8a68;line-height:1.7;}
 
+  /* ===== قسم الترخيص المهني ===== */
+  .license-header{text-align:center;margin:6px 0 14px;}
+  .license-title{font-size:25px;margin:5px 0 3px;font-weight:900;
+    background:linear-gradient(90deg,#f2ecd9,#d9b45a);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .license-sub{margin:0;font-size:11.5px;color:#b7c4a5;}
+  .license-empty{margin-top:14px;text-align:center;font-size:12.5px;color:#9fb08a;line-height:1.9;
+    background:rgba(255,255,255,0.05);border:1px dashed rgba(217,180,90,0.3);border-radius:12px;padding:16px;}
+
+  .source-doc{background:var(--card);color:var(--ink);border-radius:16px;border:1px solid var(--card-edge);
+    box-shadow:0 20px 38px -16px rgba(0,0,0,0.6);padding:20px 18px 24px;margin-top:6px;}
+  .source-doc-head{text-align:center;border-bottom:2px solid var(--amber);padding-bottom:14px;margin-bottom:16px;}
+  .source-doc-kicker{font-size:10px;letter-spacing:2px;color:var(--amber-d);text-transform:uppercase;}
+  .source-doc-title{font-size:19px;font-weight:900;margin-top:5px;color:var(--ink);}
+  .source-doc-note{font-size:11px;color:#8a7d55;margin-top:6px;line-height:1.7;}
+  .source-doc .guide-group h3{color:var(--amber-d);border-bottom-color:var(--card-edge);}
+  .source-doc .guide-item{background:#fbf7ea;border:1px solid var(--card-edge);}
+  .source-doc .guide-item b{color:var(--ink);}
+  .source-doc .gi-treat{color:#5a4d2c;}
+
+  /* ===== شاشة الاختيار الرئيسية (Hub) ===== */
+  .hub-screen{position:fixed;inset:0;z-index:60;overflow-y:auto;
+    background:radial-gradient(circle at 20% 10%, rgba(217,180,90,0.08), transparent 45%),
+      linear-gradient(165deg, var(--soil2) 0%, var(--soil) 65%);
+    padding:16px 14px 40px;}
+  .hub-inner{max-width:480px;margin:0 auto;}
+  .hub-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+  .hub-eyebrow{font-size:10px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;}
+  .hub-user{font-size:12.5px;color:#c9d6b8;margin-top:3px;}
+  .hub-icon-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.16);border-radius:10px;
+    width:34px;height:34px;color:#f2ecd9;cursor:pointer;font-size:14px;}
+  .hub-heading{font-size:20px;font-weight:900;color:#f2ecd9;text-align:center;margin:10px 0 20px;}
+  .hub-cards{display:flex;flex-direction:column;gap:14px;}
+  .hub-card{display:block;width:100%;text-align:right;padding:20px 18px;border-radius:18px;cursor:pointer;
+    border:1px solid rgba(217,180,90,0.25);
+    background:linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015));
+    box-shadow:0 18px 34px -16px rgba(0,0,0,0.55);}
+  .hub-card-icon{font-size:30px;margin-bottom:8px;}
+  .hub-card-title{font-size:17px;font-weight:900;color:#f2ecd9;margin-bottom:5px;}
+  .hub-card-desc{font-size:12px;line-height:1.8;color:#b7c4a5;margin-bottom:10px;}
+  .hub-card-cta{font-size:12px;font-weight:800;color:var(--gold);}
+  #hub-card-license{border-color:rgba(217,180,90,0.35);}
+  #hub-card-clinic{border-color:rgba(95,122,79,0.4);}
+  #hub-card-clinic .hub-card-cta{color:#9fc27f;}
+  .hub-status{font-size:11px;color:#8a9a78;text-align:center;margin-top:20px;line-height:1.8;}
+  body.light .hub-screen{background:radial-gradient(circle at 20% 10%, rgba(217,180,90,0.10), transparent 45%),
+      linear-gradient(165deg, #f7f2e2 0%, #ece3c8 100%);}
+  body.light .hub-heading{color:#2b2416;}
+  body.light .hub-user{color:#5a6b4a;}
+  body.light .hub-card{background:var(--surface);border-color:var(--surface-edge);}
+  body.light .hub-card-title{color:#2b2416;}
+  body.light .hub-card-desc{color:#5a6b4a;}
+  body.light .hub-icon-btn{background:var(--surface);border-color:var(--surface-edge);color:#2b2416;}
+
   /* ===== شاشة الترحيب — الخطوة 1: مشهد اللقاء المتحرك ===== */
   .intro-screen{position:fixed;inset:0;z-index:300;overflow:hidden;}
   .intro-screen.hide{display:none;}
@@ -176,26 +233,19 @@
     background:radial-gradient(circle at 50% 30%, rgba(217,180,90,0.10), transparent 55%),
       linear-gradient(165deg, #223019 0%, #14190f 65%, #0f130a 100%);
     display:flex;align-items:center;justify-content:center;}
-  .meet-stage{position:relative;z-index:1;width:100%;max-width:480px;padding:24px;text-align:center;}
-  .meet-avatars{position:relative;height:190px;display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:18px;}
-  .meet-avatar{width:140px;filter:drop-shadow(0 16px 20px rgba(0,0,0,0.5));}
-  .meet-avatar.male{animation:slideInRight 3s cubic-bezier(.16,.9,.2,1) forwards;}
-  .meet-avatar.female{animation:slideInLeft 3s cubic-bezier(.16,.9,.2,1) forwards;}
-  @keyframes slideInRight{0%{transform:translateX(220%);opacity:0;} 70%{opacity:1;} 100%{transform:translateX(0);opacity:1;}}
-  @keyframes slideInLeft{0%{transform:translateX(-220%);opacity:0;} 70%{opacity:1;} 100%{transform:translateX(0);opacity:1;}}
-  .meet-kicker{font-size:10px;letter-spacing:4px;color:#e3c46e;text-transform:uppercase;font-weight:700;
-    opacity:0;animation:fadeUp 1.2s ease forwards;animation-delay:3.1s;}
-  .meet-title{font-size:32px;margin:8px 0 4px;font-weight:900;
+  .splash-stage{position:relative;z-index:1;width:100%;max-width:480px;padding:22px;text-align:center;}
+  .splash-title{font-size:26px;font-weight:900;margin-bottom:16px;letter-spacing:0.3px;
     background:linear-gradient(95deg,#f7f1de 15%,#e3c46e 55%,#c07a2b 90%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    opacity:0;animation:fadeUp 1.2s ease forwards;animation-delay:3.35s;}
-  .meet-sub{font-size:12.5px;color:#9fb08a;font-weight:700;margin:0 0 22px;
-    opacity:0;animation:fadeUp 1.2s ease forwards;animation-delay:3.6s;}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);}}
+    -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .splash-img-wrap{border-radius:20px;overflow:hidden;border:1px solid rgba(217,180,90,0.3);
+    box-shadow:0 22px 40px -16px rgba(0,0,0,0.6);margin-bottom:10px;}
+  .splash-img{display:block;width:100%;height:auto;max-height:52vh;object-fit:cover;}
+  .splash-caption{font-size:11px;letter-spacing:1.5px;color:#8fae76;margin-bottom:22px;}
   .step-next-btn{padding:13px 34px;border:none;border-radius:14px;background:linear-gradient(95deg,#d9b45a,#c07a2b);
     color:#241a08;font-weight:900;font-size:14.5px;cursor:pointer;
-    box-shadow:0 14px 26px -10px rgba(192,122,43,0.65);
-    opacity:0;animation:fadeUp 1.2s ease forwards;animation-delay:4s;}
+    box-shadow:0 14px 26px -10px rgba(192,122,43,0.65);}
+
+  body.light .splash-caption{color:#5f7a4f;}
 
   /* ===== شاشة الترحيب — الخطوة 2: الرسالة والملخص ===== */
   #intro-step-2{
@@ -234,79 +284,17 @@
 
   <!-- ===== الخطوة 1: مشهد اللقاء (نخيل بالخلفية) ===== -->
   <div class="intro-step" id="intro-step-1">
-    <div class="scene-bg">
-      <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
-        <rect width="400" height="300" fill="none"/>
-        <path d="M60,300 L64,150" stroke="#3a3018" stroke-width="10" fill="none" stroke-linecap="round"/>
-        <path d="M64,150 Q40,120 15,128 M64,150 Q88,118 115,124 M64,150 Q45,100 30,70 M64,150 Q84,100 100,68 M64,150 Q64,95 64,55"
-          stroke="#3f5a2e" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.55"/>
-        <path d="M336,300 L332,140" stroke="#3a3018" stroke-width="11" fill="none" stroke-linecap="round"/>
-        <path d="M332,140 Q305,108 278,116 M332,140 Q358,106 386,112 M332,140 Q312,88 296,56 M332,140 Q353,88 370,54 M332,140 Q332,82 332,40"
-          stroke="#3f5a2e" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.55"/>
-        <ellipse cx="200" cy="300" rx="220" ry="18" fill="#1c2412" opacity="0.6"/>
-      </svg>
-    </div>
-    <div class="meet-stage">
-      <div class="meet-avatars">
-        <svg viewBox="0 0 160 200" class="meet-avatar female">
-          <defs>
-            <linearGradient id="coatGradF" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#fbfaf5"/><stop offset="100%" stop-color="#e6e4da"/>
-            </linearGradient>
-            <radialGradient id="roseGradM" cx="45%" cy="32%" r="68%">
-              <stop offset="0%" stop-color="#e28f6c"/><stop offset="55%" stop-color="#c65a42"/><stop offset="100%" stop-color="#8a3220"/>
-            </radialGradient>
-          </defs>
-          <path d="M28,198 C22,140 34,102 80,96 C126,102 138,140 132,198 Z" fill="url(#coatGradF)" stroke="#c9c6b8" stroke-width="1.5"/>
-          <path d="M58,102 L80,124 L102,102" fill="none" stroke="#a3641f" stroke-width="3"/>
-          <path d="M58,102 L52,150 M102,102 L108,150" stroke="#d8d4c4" stroke-width="2" fill="none"/>
-          <rect x="90" y="128" width="15" height="19" rx="2" fill="#f5efdd" stroke="#a3641f" stroke-width="1.3"/>
-          <path d="M32,44 Q18,28 28,10" stroke="#7a9160" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <path d="M128,44 Q142,28 132,10" stroke="#7a9160" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <g transform="translate(80 64)">
-            <circle r="32" fill="url(#roseGradM)"/>
-            <path d="M0,-25 C12,-21 17,-10 10,0 C4,-6 -4,-6 -10,0 C-17,-10 -12,-21 0,-25Z" fill="#a8402a" opacity="0.55"/>
-            <circle r="7.5" fill="#f0d0c0"/>
-          </g>
-          <circle cx="30" cy="168" r="10" fill="none" stroke="#5f7a4f" stroke-width="3"/>
-          <line x1="37" y1="175" x2="46" y2="184" stroke="#5f7a4f" stroke-width="3.5" stroke-linecap="round"/>
-        </svg>
-        <svg viewBox="0 0 160 200" class="meet-avatar male">
-          <defs>
-            <linearGradient id="coatGradM" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#fbfaf5"/><stop offset="100%" stop-color="#e6e4da"/>
-            </linearGradient>
-            <radialGradient id="sunGradM" cx="45%" cy="35%" r="65%">
-              <stop offset="0%" stop-color="#f0c96a"/><stop offset="60%" stop-color="#d9a036"/><stop offset="100%" stop-color="#a3641f"/>
-            </radialGradient>
-          </defs>
-          <path d="M28,198 C22,138 35,100 80,94 C125,100 138,138 132,198 Z" fill="url(#coatGradM)" stroke="#c9c6b8" stroke-width="1.5"/>
-          <path d="M56,100 L80,122 L104,100" fill="none" stroke="#a3641f" stroke-width="3"/>
-          <path d="M56,100 L50,150 M104,100 L110,150" stroke="#d8d4c4" stroke-width="2" fill="none"/>
-          <rect x="88" y="126" width="16" height="20" rx="2" fill="#f5efdd" stroke="#a3641f" stroke-width="1.3"/>
-          <g transform="translate(80 62)">
-            <g fill="#c8862f">
-              <ellipse cx="0" cy="-34" rx="7" ry="13"/><ellipse cx="0" cy="34" rx="7" ry="13"/>
-              <ellipse cx="34" cy="0" rx="13" ry="7"/><ellipse cx="-34" cy="0" rx="13" ry="7"/>
-              <ellipse cx="24" cy="-24" rx="7" ry="13" transform="rotate(45 24 -24)"/>
-              <ellipse cx="-24" cy="-24" rx="7" ry="13" transform="rotate(-45 -24 -24)"/>
-              <ellipse cx="24" cy="24" rx="7" ry="13" transform="rotate(-45 24 24)"/>
-              <ellipse cx="-24" cy="24" rx="7" ry="13" transform="rotate(45 -24 24)"/>
-            </g>
-            <circle r="21" fill="url(#sunGradM)"/>
-          </g>
-          <circle cx="130" cy="168" r="10" fill="none" stroke="#5f7a4f" stroke-width="3"/>
-          <line x1="123" y1="175" x2="114" y2="184" stroke="#5f7a4f" stroke-width="3.5" stroke-linecap="round"/>
-        </svg>
+    <div class="splash-stage">
+      <div class="splash-title">عيادة المحصول</div>
+      <div class="splash-img-wrap">
+        <img src="splash-engineers.jpg" alt="مهندسو زراعة بالحقل" class="splash-img">
       </div>
-      <div class="meet-kicker">CAREER-READY AGRICULTURAL TRAINING</div>
-      <div class="meet-title">عيادة المحصول</div>
-      <div class="meet-sub">حيث يلتقي مهندسو وخريجو الزراعة على طريق واحد نحو سوق العمل</div>
-      <button class="step-next-btn" id="step1-next-btn">التالي ←</button>
+      <div class="splash-caption">Ammar_test</div>
+      <button class="step-next-btn" id="step1-next-btn">متابعة ←</button>
     </div>
   </div>
 
-  <!-- ===== الخطوة 2: الرسالة الترحيبية (شجرة تفاح بالخلفية) ===== -->
+  <!-- ===== الخطوة 2: الرسالة الترحيبية (شجرة تفاح بالخلفية) — أول زيارة فقط ===== -->
   <div class="intro-step step-hidden" id="intro-step-2">
     <div class="scene-bg" style="opacity:0.5;">
       <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
@@ -351,14 +339,6 @@
 
 </div>
 <script>
-  // فحص فوري (قبل أي رسم) — لو الزائر شاف المقدمة قبل، أخفها فورًا بدون وميض
-  try{
-    if(localStorage.getItem('crop-clinic-seen-intro')==='1'){
-      document.getElementById('intro-screen').classList.add('hide');
-    }
-  }catch(e){}
-</script>
-<script>
   (function(){
     var s1btn = document.getElementById('step1-next-btn');
     if(s1btn) s1btn.addEventListener('click', function(){
@@ -368,10 +348,43 @@
   })();
 </script>
 
+<div class="hub-screen" id="hub-screen" style="display:none">
+  <div class="hub-inner">
+    <div class="hub-top">
+      <div>
+        <div class="hub-eyebrow">عيادة المحصول</div>
+        <div class="hub-user">مرحبًا، <span id="hub-user-email"></span></div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="hub-icon-btn" id="hub-theme-btn" title="تبديل الوضع">🌙</button>
+        <button class="hub-icon-btn" id="hub-account-btn" title="حسابي">👤</button>
+      </div>
+    </div>
+
+    <div class="hub-heading">وين حابب تبدأ؟</div>
+    <div class="hub-cards">
+      <button class="hub-card" id="hub-card-license">
+        <div class="hub-card-icon">📋</div>
+        <div class="hub-card-title">الترخيص المهني</div>
+        <div class="hub-card-desc">تحضير قانوني وسلامة لفتح مستودع أو محل تداول مواد زراعية — أسئلة ومصادر موحّدة</div>
+        <div class="hub-card-cta">ابدأ التحضير ←</div>
+      </button>
+      <button class="hub-card" id="hub-card-clinic">
+        <div class="hub-card-icon">🩺</div>
+        <div class="hub-card-title">العيادة التشخيصية</div>
+        <div class="hub-card-desc">تدريب ميداني تفاعلي على الأمراض والآفات ونقص العناصر عبر عشرات المحاصيل</div>
+        <div class="hub-card-cta">ابدأ التدريب ←</div>
+      </button>
+    </div>
+    <div class="hub-status" id="hub-status"></div>
+  </div>
+</div>
+
 <div class="wrap" id="app-wrap" style="display:none">
   <div class="authbar">
     <span id="auth-status">مسجّل الدخول</span>
     <div style="display:flex;gap:6px;">
+      <button id="back-to-hub-btn" title="الرئيسية">🏠 الرئيسية</button>
       <button id="theme-toggle-btn" title="تبديل الوضع">🌙</button>
       <button id="share-btn" title="مشاركة التطبيق">🔗 مشاركة</button>
       <button id="install-btn" title="تثبيت التطبيق" style="display:none;">📲 تثبيت</button>
@@ -469,8 +482,62 @@
   </div>
 </div>
 
+<!-- ===== قسم الترخيص المهني (مستقل كامل الشاشة) ===== -->
+<div class="wrap license-section" id="license-wrap" style="display:none">
+  <div class="authbar">
+    <span>📋 الترخيص المهني</span>
+    <div style="display:flex;gap:6px;">
+      <button id="license-back-btn" title="الرئيسية">🏠 الرئيسية</button>
+    </div>
+  </div>
+
+  <header class="license-header">
+    <div class="eyebrow">PROFESSIONAL LICENSING PREP</div>
+    <h1 class="license-title">الترخيص المهني</h1>
+    <p class="license-sub">تحضير قانوني وسلامة لفتح مستودع أو محل تداول مواد زراعية</p>
+  </header>
+
+  <div class="tabbar">
+    <button class="tab-btn active" data-ltab="questions">📝 أسئلة</button>
+    <button class="tab-btn" data-ltab="sources">📖 مصادر</button>
+  </div>
+
+  <!-- فرع الأسئلة -->
+  <div id="lview-questions">
+    <div class="card" id="license-card">
+      <div class="illus" id="l-illus-box"></div>
+      <div class="card-top">
+        <div class="crop-name" id="l-crop-name">—</div>
+        <div class="meta"><div id="l-cat-label">فئة</div><div class="lvl" id="l-lvl-badge">—</div></div>
+      </div>
+      <div class="symptoms" id="l-symptoms-box"></div>
+      <div class="options" id="l-options-box"></div>
+      <div class="feedback" id="l-feedback-box"></div>
+    </div>
+    <button class="next-btn" id="l-next-btn">السؤال التالي ⟵</button>
+    <div class="license-empty" id="license-empty-msg" style="display:none;">
+      لا توجد أسئلة بهذا القسم بعد — بيتم إضافتها تباعًا. تابعنا لاحقًا 🌱
+    </div>
+  </div>
+
+  <!-- فرع المصادر -->
+  <div id="lview-sources" style="display:none">
+    <div class="source-doc">
+      <div class="source-doc-head">
+        <div class="source-doc-kicker">الوثيقة الموحّدة</div>
+        <div class="source-doc-title">مرجع الترخيص المهني الشامل</div>
+        <div class="source-doc-note">مجمّعة من قانون المبيدات ومعايير السلامة والتصنيف العالمية — للاستذكار والتحضير، ولا تغني عن مراجعة النصوص الرسمية الكاملة.</div>
+      </div>
+      <div id="license-guide-content"></div>
+    </div>
+  </div>
+
+  <footer>القسم قيد التوسّع المستمر بمحتوى إضافي.</footer>
+</div>
+
 <div class="modal show" id="auth-modal" style="z-index:200;">
   <div class="modal-inner">
+
     <div class="auth-plant-banner">
       <svg viewBox="0 0 120 120">
         <defs>

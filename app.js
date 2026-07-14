@@ -8,7 +8,8 @@ const CROPS = {
 const CATS = {
  nutrient:'نقص عناصر غذائية', fungal:'أمراض فطرية', pest:'آفات حشرية',
  physio:'حالات فسيولوجية', pruning:'تقليم وإدارة النبات',
- irrigation:'ري وتسميد', organic:'مخلفات عضوية وتكامل زراعي'
+ irrigation:'ري وتسميد', organic:'مخلفات عضوية وتكامل زراعي',
+ license:'الترخيص المهني'
 };
 
 /* ===================== أدوات مساعدة ===================== */
@@ -34,6 +35,13 @@ function defaultShape(cat){
 
 let lastCaseLoadError = '';
 const LOCAL_CACHE_KEY = 'crop-clinic-case-bank-v1';
+
+function setLoadStatus(msg, isHTML){
+  const bc = document.getElementById('bank-count');
+  const hs = document.getElementById('hub-status');
+  if(bc){ if(isHTML) bc.innerHTML = msg; else bc.textContent = msg; }
+  if(hs){ if(isHTML) hs.innerHTML = msg; else hs.textContent = msg; }
+}
 
 function saveCaseBankToLocalCache(){
   try{
@@ -77,8 +85,7 @@ function scheduleBackgroundRefresh(){
       const ok = await fetchCaseDataOnce();
       if(ok){
         saveCaseBankToLocalCache();
-        const el = document.getElementById('bank-count');
-        if(el) el.textContent = `${CASE_BANK.length} حالة تشخيصية — تم تحديث البيانات ✔`;
+        setLoadStatus(`${CASE_BANK.length} حالة تشخيصية — تم تحديث البيانات ✔`);
         console.info('تم تحديث بنك الحالات بالخلفية بنجاح.');
       }
     }catch(e){ /* صامت — نحاول لاحقًا عند رجوع الاتصال */ }
@@ -95,7 +102,7 @@ async function loadCaseDataFromFirestore(){
     try{
       const ok = await fetchCaseDataOnce();
       if(ok){
-        document.getElementById('bank-count').textContent = `${CASE_BANK.length} حالة تشخيصية — محمية بتسجيل الدخول`;
+        setLoadStatus(`${CASE_BANK.length} حالة تشخيصية — محمية بتسجيل الدخول`);
         saveCaseBankToLocalCache();
         return true;
       } else {
@@ -112,8 +119,7 @@ async function loadCaseDataFromFirestore(){
   }
   // فشلت كل المحاولات المباشرة — جرّب الرجوع لنسخة محفوظة محليًا من زيارة سابقة ناجحة
   if(loadCaseBankFromLocalCache()){
-    document.getElementById('bank-count').textContent =
-      `${CASE_BANK.length} حالة (نسخة محفوظة محليًا — سيتم التحديث تلقائيًا عند توفر الاتصال) ⚠️`;
+    setLoadStatus(`${CASE_BANK.length} حالة (نسخة محفوظة محليًا — سيتم التحديث تلقائيًا عند توفر الاتصال) ⚠️`);
     scheduleBackgroundRefresh();
     return true;
   }
@@ -169,9 +175,22 @@ function svgSoil(){
     <circle cx="50" cy="15" r="6" fill="#5a9040"/>
   </svg>`;
 }
+function svgDocument(){
+  return `<svg viewBox="0 0 100 110">
+    <rect x="18" y="6" width="64" height="98" rx="4" fill="#f5efdd" stroke="#c07a2b" stroke-width="2.5"/>
+    <rect x="30" y="2" width="40" height="14" rx="3" fill="#d9b45a"/>
+    <line x1="30" y1="34" x2="70" y2="34" stroke="#a3641f" stroke-width="3"/>
+    <line x1="30" y1="46" x2="70" y2="46" stroke="#c9bc98" stroke-width="3"/>
+    <line x1="30" y1="58" x2="70" y2="58" stroke="#c9bc98" stroke-width="3"/>
+    <line x1="30" y1="70" x2="55" y2="70" stroke="#c9bc98" stroke-width="3"/>
+    <circle cx="66" cy="84" r="14" fill="none" stroke="#a8402a" stroke-width="2.5"/>
+    <path d="M60,84 L64,88 L73,79" stroke="#a8402a" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
 
 function iconFor(c){
   const seed = c.id;
+  if(c.shape==='document') return svgDocument();
   if(c.shape==='fruit'){
     const map = {'تعفن طرف الثمرة':'darkPatch','تشقق الثمار':'crack','لفحة الشمس':'whitePatch','بقاء الكتف الأخضر':'whitePatch','ضعف التلقيح وتشوه الثمار':'crack'};
     return svgFruit(map[c.name] || 'darkPatch', seed);
@@ -213,16 +232,58 @@ try{
 
 let authMode = 'login'; // login | signup
 
-/* ===================== شاشة الترحيب التعريفية ===================== */
+/* ===================== شاشة الترحيب التعريفية (تظهر بكل زيارة) ===================== */
 const introCtaBtn = document.getElementById('intro-cta-btn');
 if(introCtaBtn){
   introCtaBtn.addEventListener('click', ()=>{
     document.getElementById('intro-screen').classList.add('hide');
-    try{ localStorage.setItem('crop-clinic-seen-intro', '1'); }catch(e){}
   });
 }
 
 function openAuthModal(){ document.getElementById('auth-modal').classList.add('show'); }
+
+/* ===================== التنقل بين شاشة الاختيار الرئيسية والأقسام ===================== */
+function showHub(){
+  document.getElementById('hub-screen').style.display='flex';
+  document.getElementById('app-wrap').style.display='none';
+  document.getElementById('license-wrap').style.display='none';
+}
+function showClinic(){
+  document.getElementById('hub-screen').style.display='none';
+  document.getElementById('app-wrap').style.display='block';
+}
+function showLicenseSection(){
+  document.getElementById('hub-screen').style.display='none';
+  document.getElementById('license-wrap').style.display='block';
+  if(!licenseSourcesBuilt){ buildLicenseGuide(); licenseSourcesBuilt = true; }
+  nextLicenseCase();
+}
+const hubCardClinic = document.getElementById('hub-card-clinic');
+if(hubCardClinic) hubCardClinic.addEventListener('click', showClinic);
+const hubCardLicense = document.getElementById('hub-card-license');
+if(hubCardLicense) hubCardLicense.addEventListener('click', showLicenseSection);
+const backToHubBtn = document.getElementById('back-to-hub-btn');
+if(backToHubBtn) backToHubBtn.addEventListener('click', showHub);
+const licenseBackBtn = document.getElementById('license-back-btn');
+if(licenseBackBtn) licenseBackBtn.addEventListener('click', showHub);
+const hubThemeBtn = document.getElementById('hub-theme-btn');
+if(hubThemeBtn) hubThemeBtn.addEventListener('click', ()=>{
+  const isLight = document.body.classList.contains('light');
+  applyTheme(isLight ? 'dark' : 'light');
+});
+const hubAccountBtn = document.getElementById('hub-account-btn');
+if(hubAccountBtn) hubAccountBtn.addEventListener('click', openAuthModal);
+
+/* ===== تبويبات فرعية داخل قسم الترخيص المهني ===== */
+document.querySelectorAll('#license-wrap .tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#license-wrap .tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.ltab;
+    document.getElementById('lview-questions').style.display = tab==='questions' ? 'block' : 'none';
+    document.getElementById('lview-sources').style.display = tab==='sources' ? 'block' : 'none';
+  });
+});
 function closeAuthModal(){ document.getElementById('auth-modal').classList.remove('show'); }
 document.getElementById('auth-open-btn').addEventListener('click', openAuthModal);
 document.getElementById('auth-close').addEventListener('click', closeAuthModal);
@@ -270,11 +331,13 @@ document.getElementById('auth-resend-btn').addEventListener('click', async ()=>{
 async function renderAuthGate(){
   const gate = document.getElementById('auth-modal');
   const appWrap = document.getElementById('app-wrap');
+  const hub = document.getElementById('hub-screen');
   const user = fbUser;
 
   if(user && user.emailVerified){
     gate.classList.remove('show');
-    appWrap.style.display='block';
+    hub.style.display='flex';
+    document.getElementById('hub-user-email').textContent = user.email;
     document.getElementById('auth-status').textContent = 'مسجّل الدخول: ' + user.email;
     document.getElementById('auth-open-btn').textContent = 'حسابي';
     document.getElementById('auth-form-area').style.display='none';
@@ -283,15 +346,16 @@ async function renderAuthGate(){
     document.getElementById('auth-current-email').textContent = user.email;
 
     if(CASE_BANK.length === 0){
-      document.getElementById('bank-count').textContent = '...جارٍ تحميل بيانات الحالات (قد يعيد المحاولة تلقائيًا عند ضعف الشبكة)';
+      setLoadStatus('...جارٍ تحميل بيانات الحالات (قد يعيد المحاولة تلقائيًا عند ضعف الشبكة)');
       const ok = await loadCaseDataFromFirestore();
       if(!ok || CASE_BANK.length === 0){
         const reason = lastCaseLoadError ? `(${lastCaseLoadError})` : '(البنك فارغ أو لم يتم إرجاع أي حالات)';
-        document.getElementById('bank-count').innerHTML =
+        setLoadStatus(
           `تعذر تحميل بيانات الحالات ${reason}. تأكد من اتصال الإنترنت وقواعد الأمان. ` +
-          `<button id="retry-load-btn" style="margin-inline-start:6px;padding:2px 10px;border-radius:12px;border:1px solid currentColor;background:none;color:inherit;font-size:11px;cursor:pointer;">إعادة المحاولة 🔄</button>`;
-        const retryBtn = document.getElementById('retry-load-btn');
-        if(retryBtn) retryBtn.addEventListener('click', renderAuthGate);
+          `<button class="retry-load-btn" style="margin-inline-start:6px;padding:2px 10px;border-radius:12px;border:1px solid currentColor;background:none;color:inherit;font-size:11px;cursor:pointer;">إعادة المحاولة 🔄</button>`,
+          true
+        );
+        document.querySelectorAll('.retry-load-btn').forEach(b=> b.addEventListener('click', renderAuthGate));
         return;
       }
       await loadProgress();
@@ -303,6 +367,7 @@ async function renderAuthGate(){
   } else if(user && !user.emailVerified){
     gate.classList.add('show');
     appWrap.style.display='none';
+    hub.style.display='none';
     document.getElementById('auth-form-area').style.display='none';
     document.getElementById('auth-loggedin-area').style.display='none';
     document.getElementById('auth-verify-area').style.display='block';
@@ -310,6 +375,7 @@ async function renderAuthGate(){
   } else {
     gate.classList.add('show');
     appWrap.style.display='none';
+    hub.style.display='none';
     document.getElementById('auth-form-area').style.display='block';
     document.getElementById('auth-loggedin-area').style.display='none';
     document.getElementById('auth-verify-area').style.display='none';
@@ -333,6 +399,8 @@ let progress = { total:0, correct:0, weakness:{}, seenIds:[], history:[], notes:
 let activeCat = 'all';
 let activeCrop = 'all';
 let currentCase = null;
+let currentLicenseCase = null;
+let licenseSourcesBuilt = false;
 
 async function loadProgress(){
   if(fbUser && fbDb){
@@ -543,6 +611,46 @@ function answer(i){
   fb.innerHTML = feedbackHTML(currentCase, isRight);
   document.getElementById('notes-area').style.display='block';
 }
+
+/* ===================== أسئلة قسم الترخيص المهني ===================== */
+function nextLicenseCase(){
+  const pool = CASE_BANK.filter(c=>c.category==='license');
+  const card = document.getElementById('license-card');
+  const nextBtn = document.getElementById('l-next-btn');
+  const emptyMsg = document.getElementById('license-empty-msg');
+  if(!pool.length){
+    if(card) card.style.display='none';
+    if(nextBtn) nextBtn.style.display='none';
+    if(emptyMsg) emptyMsg.style.display='block';
+    return;
+  }
+  if(card) card.style.display='block';
+  if(nextBtn) nextBtn.style.display='block';
+  if(emptyMsg) emptyMsg.style.display='none';
+  const c = pickNextCase(pool);
+  currentLicenseCase = c;
+  renderCaseInto(c, 'l-options-box','l-symptoms-box','l-illus-box','l-crop-name','l-cat-label','l-lvl-badge', licenseAnswer);
+  document.getElementById('l-feedback-box').className='feedback';
+  if(!progress.seenIds.includes(c.id)) progress.seenIds.push(c.id);
+}
+function licenseAnswer(i){
+  const buttons = document.querySelectorAll('#l-options-box .opt');
+  buttons.forEach(b=>b.disabled=true);
+  const correct = currentLicenseCase.correctIndex;
+  buttons[correct].classList.add('correct');
+  const isRight = i===correct;
+  if(!isRight){
+    buttons[i].classList.add('wrong');
+    progress.weakness[currentLicenseCase.category] = (progress.weakness[currentLicenseCase.category]||0)+1;
+  }
+  progress.total++; if(isRight) progress.correct++;
+  saveProgress(); renderStats(); renderBadges();
+  const fb = document.getElementById('l-feedback-box');
+  fb.className = 'feedback show ' + (isRight?'ok':'no');
+  fb.innerHTML = feedbackHTML(currentLicenseCase, isRight);
+}
+const lNextBtn = document.getElementById('l-next-btn');
+if(lNextBtn) lNextBtn.addEventListener('click', nextLicenseCase);
 
 document.getElementById('note-save-btn').addEventListener('click', ()=>{
   if(!currentCase) return;
@@ -802,6 +910,80 @@ function buildGuide(){
   html += '</div>';
   content.innerHTML = html;
 }
+/* ===================== دليل الترخيص المهني ===================== */
+function buildLicenseGuide(){
+  const content = document.getElementById('license-guide-content');
+  content.innerHTML = `
+    <div class="guide-group">
+      <h3>📄 شروط الحصول على ترخيص محل تداول المواد الزراعية</h3>
+      <div class="guide-item">
+        <b>الشروط الأساسية بمقدم الطلب</b>
+        <span class="gi-treat">حائز شهادة ثانوية على الأقل (كحد أدنى) · مسجّل بالسجل التجاري وغرفة التجارة · تعيين مدير فني مهندس زراعي منتسب للنقابة (يُعفى من هذا الشرط إن كان صاحب الترخيص نفسه مهندسًا زراعيًا منتسبًا)</span>
+      </div>
+      <div class="guide-item">
+        <b>الأوراق الثبوتية المطلوبة ضمن المصنّف</b>
+        <span class="gi-treat">استمارة ترخيص زراعي رسمية · سند ملكية أو عقد إيجار مصدّق ساري لمدة سنتين على الأقل · سجل تجاري · شهادة تسجيل تاجر من غرفة التجارة · وثيقة قيد السجل المدني أو صورة هوية · وثيقة "غير محكوم" من السجل العدلي · وثيقة تثبت عدم كون صاحب الطلب عاملًا بالدولة · وثيقة انتساب لنقابة المهندسين الزراعيين من فرع المحافظة</span>
+      </div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🏬 الشروط الواجب توفرها في المستودع</h3>
+      <div class="guide-item"><span class="gi-treat">تزويده بأجهزة تهوية جيدة · تزويده بأجهزة إطفاء حريق ومصدر مياه قريب · إبعاده عن أقرب تجمع سكني بمسافة لا تقل عن 800 متر (لا ينطبق على مستودعات معامل الإنتاج داخل المنشأة نفسها) · إبعاده عن المياه السطحية (أنهار، بحيرات، بحار) بمسافة لا تقل عن 800 متر · رفع المواد المخزّنة عن الأرض بمواد عازلة سماكتها 10 سم على الأقل · إتاحة حركة سهلة لأجهزة الإطفاء حول المستودع</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🏪 الشروط الواجب توفرها في محل التداول</h3>
+      <div class="guide-item"><span class="gi-treat">مبني من الإسمنت · درجة حرارة مناسبة بعيدة عن أشعة الشمس المباشرة · براد لحفظ المستحضرات الحيوية والفرمونات · أجهزة إطفاء حريق ولوازم وقاية (قفازات، أقنعة غازية) · أرضية سهلة التنظيف غير ماصة للسوائل · منافذ تهوية كافية · ترتيب المستحضرات على رفوف وتصنيفها حسب سميتها لسهولة تمييزها · لافتات خطر وتحذير واضحة بخط كبير · مكان مخصص للمواد عالية السمية على مسؤولية صاحب المحل</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>👷 شروط ومهام المدير الفني</h3>
+      <div class="guide-item">
+        <b>الشروط</b>
+        <span class="gi-treat">مهندس زراعي متفرغ تفرغًا كاملًا (لا يحق أن يكون مديرًا فنيًا لأكثر من جهة واحدة) · منتسب لنقابة المهندسين الزراعيين · من غير العاملين بالدولة</span>
+      </div>
+      <div class="guide-item">
+        <b>المهام</b>
+        <span class="gi-treat">مسؤول عن صحة المعلومات الفنية والتقنية والبيئية للمواد · الإشراف الفني على التخزين الصحيح والآمن في الأماكن المخصصة</span>
+      </div>
+    </div>
+
+    <div class="guide-group">
+      <h3>⚠️ تصنيف سمية المبيدات (منظمة الصحة العالمية / الأغذية والزراعة)</h3>
+      <table class="guide-table">
+        <tr><th>الفئة</th><th>لون البطاقة</th><th>العلامة</th><th>درجة السمية</th></tr>
+        <tr><td>Ia</td><td>حمراء</td><td>جمجمة وعظمتين</td><td>شديدة السمية</td></tr>
+        <tr><td>Ib</td><td>حمراء</td><td>جمجمة وعظمتين</td><td>سام جدًا</td></tr>
+        <tr><td>II</td><td>صفراء</td><td>علامة X</td><td>ضار</td></tr>
+        <tr><td>III</td><td>زرقاء</td><td>علامة X</td><td>تحذير</td></tr>
+        <tr><td>U</td><td>خضراء</td><td>علامة X</td><td>تحذير خفيف</td></tr>
+      </table>
+      <div class="guide-item" style="margin-top:8px;">
+        <b>تصنيف آخر (وكالة حماية البيئة الأمريكية EPA)</b>
+        <span class="gi-treat">4 فئات سمية؛ الفئات 1-3 تتطلب إلزاميًا كلمة تحذير على الملصق ("خطر-سم" للفئة الأولى، "تحذير" للثانية والثالثة)، بينما الفئة الرابعة غير سامة عمليًا</span>
+      </div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🧪 قواعد ممنوع خلطها معًا</h3>
+      <div class="guide-item"><span class="gi-treat">المبيد المحتوي على نحاس مع أي مبيدات أخرى · الكبريت مع أي مبيد (يُرش منفردًا) · المبيدات الفطرية مع الأسمدة الورقية · مبيدات العناكب مع أي مبيدات · الأحماض الأمينية والأسمدة الورقية غير المخلبية مع المبيدات · الأسمدة الورقية النحاسية مع المبيدات النحاسية · المبيدات الحشرية مع الفطرية · المبيدات الفطرية مع الزيوت المعدنية · المبيدات النحاسية خلال موسم التزهير (تؤثر على حبوب اللقاح) · رش نفس المبيد أكثر من مرتين متتاليتين (لتجنب ظهور المقاومة) · المبيدات الفوسفورية العضوية مع بعضها (خطر تفكك المركبات)</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🚑 الإسعافات الأولية الأساسية حسب نوع التسمم</h3>
+      <div class="guide-item"><b>المركبات الفوسفورية العضوية</b><span class="gi-treat">الأعراض: تعرق، دوخة، قيء، اضطرابات رئوية. الإسعاف: سلفات الأتروبين + تنفس اصطناعي + أوكسجين، ثم طبيب فورًا</span></div>
+      <div class="guide-item"><b>المركبات الزرنيخية</b><span class="gi-treat">الأعراض: آلام حنجرة، عطش، نبض غير منتظم. الإسعاف: مادة مقيئة وحليب، ثم طبيب فورًا</span></div>
+      <div class="guide-item"><b>غاز بروميد الميثيل</b><span class="gi-treat">الأعراض: دوخة، تعب، رغبة بالتقيؤ. الإسعاف: إخراج المصاب للهواء الطلق فورًا وتنفس اصطناعي</span></div>
+      <div class="guide-item"><span class="gi-treat">ملاحظة: هذه إسعافات أولية مؤقتة فقط ريثما يصل الطبيب، ولا تغني عن المراجعة الطبية الفورية في كل حالة تسمم.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🛡️ قواعد السلامة العامة أثناء الرش</h3>
+      <div class="guide-item"><span class="gi-treat">الرش عند الغروب أو العصر، لا بالأيام الحارة المشمسة · الرش مع اتجاه الريح لا عكسه · لبس الملابس والقفازات والنظارات الواقية · عدم الرش وقت تفتح الأزهار (حماية حبوب اللقاح والنحل) · إخطار النحالين قبل يومين من الرش · عدم الأكل أو الشرب أو التدخين أثناء الرش · غسل اليدين فورًا بعد الانتهاء · عدم العمل أكثر من 6 ساعات يوميًا بالرش · حمل أقراص سلفات الأتروبين احتياطًا · التخلص من العبوات الفارغة بالدفن بعيدًا عن مصادر المياه، لا بحرقها أو إعادة استخدامها</span></div>
+    </div>
+  `;
+}
+
 document.getElementById('guide-btn').addEventListener('click', ()=>{
   buildGuide();
   document.getElementById('guide-modal').classList.add('show');
