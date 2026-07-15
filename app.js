@@ -252,11 +252,13 @@ function showClinic(){
   document.getElementById('hub-screen').style.display='none';
   document.getElementById('app-wrap').style.display='block';
 }
+let licenseProgressLoaded = false;
 function showLicenseSection(){
   document.getElementById('hub-screen').style.display='none';
   document.getElementById('license-wrap').style.display='block';
   if(!licenseSourcesBuilt){ buildLicenseGuide(); licenseSourcesBuilt = true; }
-  nextLicenseCase();
+  if(!licenseProgressLoaded){ licenseProgressLoaded = true; loadLicenseProgress().then(nextLicenseCase); }
+  else { nextLicenseCase(); }
 }
 const hubCardClinic = document.getElementById('hub-card-clinic');
 if(hubCardClinic) hubCardClinic.addEventListener('click', showClinic);
@@ -346,7 +348,7 @@ async function renderAuthGate(){
     document.getElementById('auth-current-email').textContent = user.email;
 
     if(CASE_BANK.length === 0){
-      setLoadStatus('...جارٍ تحميل بيانات الحالات (قد يعيد المحاولة تلقائيًا عند ضعف الشبكة)');
+      setLoadStatus('...جارٍ تحميل بيانات الحالات');
       const ok = await loadCaseDataFromFirestore();
       if(!ok || CASE_BANK.length === 0){
         const reason = lastCaseLoadError ? `(${lastCaseLoadError})` : '(البنك فارغ أو لم يتم إرجاع أي حالات)';
@@ -396,6 +398,7 @@ if(fbAuth){
 
 /* ===================== حالة التطبيق ===================== */
 let progress = { total:0, correct:0, weakness:{}, seenIds:[], history:[], notes:{} };
+let licenseProgress = { total:0, correct:0, weakness:{}, seenIds:[] };
 let activeCat = 'all';
 let activeCrop = 'all';
 let currentCase = null;
@@ -429,10 +432,39 @@ async function saveProgress(){
   }
 }
 
+/* ===== تقدّم قسم الترخيص المهني — منفصل تمامًا عن تقدّم العيادة التشخيصية ===== */
+async function loadLicenseProgress(){
+  if(fbUser && fbDb){
+    try{
+      const doc = await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('licenseProgress').get();
+      if(doc.exists) licenseProgress = Object.assign({total:0,correct:0,weakness:{},seenIds:[]}, doc.data());
+      else licenseProgress = { total:0, correct:0, weakness:{}, seenIds:[] };
+    }catch(e){ console.warn('تعذر تحميل تقدّم الترخيص المهني من الحساب:', e.message); }
+  } else {
+    try{ const raw = localStorage.getItem('crop-clinic-license-progress'); if(raw) licenseProgress = JSON.parse(raw); }catch(e){}
+  }
+  renderLicenseStats();
+}
+async function saveLicenseProgress(){
+  if(fbUser && fbDb){
+    try{ await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('licenseProgress').set(licenseProgress); }
+    catch(e){ console.warn('تعذر حفظ تقدّم الترخيص المهني بالحساب:', e.message); }
+  } else {
+    try{ localStorage.setItem('crop-clinic-license-progress', JSON.stringify(licenseProgress)); }catch(e){}
+  }
+}
+function renderLicenseStats(){
+  const totalEl = document.getElementById('l-st-total');
+  const accEl = document.getElementById('l-st-acc');
+  if(!totalEl || !accEl) return;
+  totalEl.textContent = licenseProgress.total;
+  accEl.textContent = licenseProgress.total ? Math.round(100*licenseProgress.correct/licenseProgress.total)+'%' : '—';
+}
+
 function renderStats(){
   document.getElementById('st-total').textContent = progress.total;
   document.getElementById('st-acc').textContent = progress.total ? Math.round(100*progress.correct/progress.total)+'%' : '—';
-  document.getElementById('st-seen').textContent = progress.seenIds.length + '/' + CASE_BANK.length;
+  document.getElementById('st-seen').textContent = progress.seenIds.length + '/' + clinicCases().length;
   const weakSorted = Object.entries(progress.weakness).sort((a,b)=>b[1]-a[1]).slice(0,2);
   document.getElementById('weak-line').textContent = weakSorted.length ? 'نقاط ضعف: ' + weakSorted.map(w=>CATS[w[0]]).join(' · ') : '';
 }
@@ -459,14 +491,15 @@ async function loadLeaders(){
 /* ===================== شارات الإنجاز ===================== */
 function computeBadges(){
   const acc = progress.total ? Math.round(100*progress.correct/progress.total) : 0;
+  const clinicTotal = clinicCases().length;
   return [
     {label:'أول 10 حالات', earned: progress.total>=10},
     {label:'100 حالة', earned: progress.total>=100},
     {label:'300 حالة', earned: progress.total>=300},
     {label:'دقة 70%+', earned: acc>=70 && progress.total>=20},
     {label:'دقة 90%+', earned: acc>=90 && progress.total>=20},
-    {label:'نصف البنك', earned: progress.seenIds.length >= CASE_BANK.length/2},
-    {label:'كل البنك', earned: progress.seenIds.length >= CASE_BANK.length},
+    {label:'نصف البنك', earned: progress.seenIds.length >= clinicTotal/2},
+    {label:'كل البنك', earned: progress.seenIds.length >= clinicTotal},
   ];
 }
 function renderBadges(){
@@ -494,13 +527,19 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 });
 
 
+// بنك حالات العيادة التشخيصية فقط (يستثني أسئلة قسم الترخيص المهني تمامًا، لأنها بنك منفصل بغرض مختلف)
+function clinicCases(){
+  return CASE_BANK.filter(c=>c.category!=='license');
+}
+
 function buildCatBar(){
   const bar = document.getElementById('catbar');
+  const clinicBank = clinicCases();
   // في وضع التدريب على محصول واحد، أظهر فقط الفئات (الأمراض/الآفات/الحالات الفسيولوجية...) الموجودة فعليًا لهذا المحصول
   const relevantCats = activeCrop==='all'
-    ? Object.keys(CATS)
-    : Array.from(new Set(CASE_BANK.filter(c=>c.crop===activeCrop).map(c=>c.category)));
-  const all = [['all','الكل'], ...Object.entries(CATS).filter(([key])=>relevantCats.includes(key))];
+    ? Object.keys(CATS).filter(k=>k!=='license')
+    : Array.from(new Set(clinicBank.filter(c=>c.crop===activeCrop).map(c=>c.category)));
+  const all = [['all','الكل'], ...Object.entries(CATS).filter(([key])=>key!=='license' && relevantCats.includes(key))];
   // إن لم تعد الفئة الحالية متاحة ضمن المحصول المختار، ارجع إلى "الكل"
   if(activeCat!=='all' && !relevantCats.includes(activeCat)) activeCat = 'all';
   bar.innerHTML='';
@@ -516,7 +555,7 @@ function buildCatBar(){
 function buildCropSelect(){
   const sel = document.getElementById('crop-select');
   if(!sel) return;
-  const crops = Array.from(new Set(CASE_BANK.map(c=>c.crop))).sort((a,b)=>a.localeCompare(b,'ar'));
+  const crops = Array.from(new Set(clinicCases().map(c=>c.crop))).sort((a,b)=>a.localeCompare(b,'ar'));
   sel.innerHTML = '<option value="all">🌱 التدريب على كل المحاصيل</option>' +
     crops.map(name=>`<option value="${name}">${name}</option>`).join('');
   sel.value = activeCrop;
@@ -527,7 +566,7 @@ function updateCropFocusLine(){
   const line = document.getElementById('crop-focus-line');
   if(!line) return;
   if(activeCrop==='all'){ line.textContent=''; return; }
-  const count = CASE_BANK.filter(c=>c.crop===activeCrop && (activeCat==='all'||c.category===activeCat)).length;
+  const count = clinicCases().filter(c=>c.crop===activeCrop && (activeCat==='all'||c.category===activeCat)).length;
   line.textContent = `🔎 تدريب مركّز على "${activeCrop}" — ${count} حالة متاحة (كل الأمراض والآفات والحالات الفسيولوجية الخاصة به)`;
 }
 
@@ -543,14 +582,15 @@ if(cropSelectEl){
   console.warn('عنصر #crop-select غير موجود في index-1.html — تأكد من نسخ ملف الـ HTML الجديد كاملاً.');
 }
 
-function pickNextCase(pool){
-  const matchesFilters = c => (activeCat==='all' || c.category===activeCat) && (activeCrop==='all' || c.crop===activeCrop);
+function pickNextCase(pool, progObj){
+  progObj = progObj || progress;
+  const matchesFilters = c => c.category!=='license' && (activeCat==='all' || c.category===activeCat) && (activeCrop==='all' || c.crop===activeCrop);
   pool = pool || CASE_BANK.filter(matchesFilters);
-  // شبكة أمان: إن لم توجد حالات مطابقة (مثلاً محصول بلا حالات في فئة معينة)، وسّع البحث تدريجيًا بدل توقف التطبيق
-  if(!pool.length && activeCrop!=='all') pool = CASE_BANK.filter(c=>c.crop===activeCrop);
-  if(!pool.length) pool = CASE_BANK;
-  const unseen = pool.filter(c=>!progress.seenIds.includes(c.id));
-  const weakCats = Object.entries(progress.weakness).sort((a,b)=>b[1]-a[1]).map(w=>w[0]);
+  // شبكة أمان: إن لم توجد حالات مطابقة (مثلاً محصول بلا حالات في فئة معينة)، وسّع البحث تدريجيًا بدل توقف التطبيق (مع الإبقاء على استثناء فئة الترخيص المهني دائمًا)
+  if(!pool.length && activeCrop!=='all') pool = clinicCases().filter(c=>c.crop===activeCrop);
+  if(!pool.length) pool = clinicCases();
+  const unseen = pool.filter(c=>!progObj.seenIds.includes(c.id));
+  const weakCats = Object.entries(progObj.weakness).sort((a,b)=>b[1]-a[1]).map(w=>w[0]);
   if(weakCats.length && Math.random()<0.35){
     const weakPool = pool.filter(c=>c.category===weakCats[0]);
     if(weakPool.length) return weakPool[Math.floor(Math.random()*weakPool.length)];
@@ -613,25 +653,34 @@ function answer(i){
 }
 
 /* ===================== أسئلة قسم الترخيص المهني ===================== */
-function nextLicenseCase(){
+function nextLicenseCase(retriesLeft){
+  if(retriesLeft === undefined) retriesLeft = 24;
   const pool = CASE_BANK.filter(c=>c.category==='license');
   const card = document.getElementById('license-card');
   const nextBtn = document.getElementById('l-next-btn');
   const emptyMsg = document.getElementById('license-empty-msg');
   if(!pool.length){
+    // إذا كان بنك الحالات لسا فارغًا بالكامل، غالبًا التحميل بالخلفية ما خلص بعد — أعد المحاولة بدل الحكم بعدم وجود أسئلة
+    if(CASE_BANK.length === 0 && retriesLeft > 0){
+      if(card) card.style.display='none';
+      if(nextBtn) nextBtn.style.display='none';
+      if(emptyMsg){ emptyMsg.style.display='block'; emptyMsg.textContent='...جارٍ تحميل الأسئلة'; }
+      setTimeout(()=>nextLicenseCase(retriesLeft-1), 500);
+      return;
+    }
     if(card) card.style.display='none';
     if(nextBtn) nextBtn.style.display='none';
-    if(emptyMsg) emptyMsg.style.display='block';
+    if(emptyMsg){ emptyMsg.style.display='block'; emptyMsg.textContent='لا توجد أسئلة بهذا القسم بعد — بيتم إضافتها تباعًا. تابعنا لاحقًا 🌱'; }
     return;
   }
   if(card) card.style.display='block';
   if(nextBtn) nextBtn.style.display='block';
   if(emptyMsg) emptyMsg.style.display='none';
-  const c = pickNextCase(pool);
+  const c = pickNextCase(pool, licenseProgress);
   currentLicenseCase = c;
   renderCaseInto(c, 'l-options-box','l-symptoms-box','l-illus-box','l-crop-name','l-cat-label','l-lvl-badge', licenseAnswer);
   document.getElementById('l-feedback-box').className='feedback';
-  if(!progress.seenIds.includes(c.id)) progress.seenIds.push(c.id);
+  if(!licenseProgress.seenIds.includes(c.id)) licenseProgress.seenIds.push(c.id);
 }
 function licenseAnswer(i){
   const buttons = document.querySelectorAll('#l-options-box .opt');
@@ -641,10 +690,10 @@ function licenseAnswer(i){
   const isRight = i===correct;
   if(!isRight){
     buttons[i].classList.add('wrong');
-    progress.weakness[currentLicenseCase.category] = (progress.weakness[currentLicenseCase.category]||0)+1;
+    licenseProgress.weakness[currentLicenseCase.category] = (licenseProgress.weakness[currentLicenseCase.category]||0)+1;
   }
-  progress.total++; if(isRight) progress.correct++;
-  saveProgress(); renderStats(); renderBadges();
+  licenseProgress.total++; if(isRight) licenseProgress.correct++;
+  saveLicenseProgress(); renderLicenseStats();
   const fb = document.getElementById('l-feedback-box');
   fb.className = 'feedback show ' + (isRight?'ok':'no');
   fb.innerHTML = feedbackHTML(currentLicenseCase, isRight);
@@ -828,7 +877,7 @@ let quiz = null;
 document.getElementById('quiz-start-btn').addEventListener('click', startQuiz);
 
 function startQuiz(){
-  const pool = seededShuffle(CASE_BANK, Date.now()%100000).slice(0,20);
+  const pool = seededShuffle(clinicCases(), Date.now()%100000).slice(0,20);
   quiz = { pool, index:0, correct:0, answered:false };
   renderQuizQuestion();
 }
@@ -915,6 +964,18 @@ function buildLicenseGuide(){
   const content = document.getElementById('license-guide-content');
   content.innerHTML = `
     <div class="guide-group">
+      <h3>📖 تعاريف أساسية (المادة 1 من قانون المبيدات)</h3>
+      <div class="guide-item"><b>المبيدات الزراعية</b><span class="gi-treat">مستحضرات من مادة أو خليط مواد (كيميائية عضوية/غير عضوية أو من مصدر نباتي/حيواني/كائنات حية) غرضها الوقاية من آفة زراعية أو مكافحتها. تشمل: مبيدات الحشرات، النيماتودا، العناكب وحلم فاروا النحل، مسببات الأمراض النباتية، الأعشاب (بما فيها مسقطات الأوراق ومنظمات النمو)، القوارض، الرخويات، ومبيدات من أصل نباتي. ويُلحق بها: الزيوت الصيفية والشتوية، المواد اللاصقة أو الناشرة، المواد الغذائية الجاذبة، المصائد والفرمونات الجنسية، المصائد الفيزيائية (لونية/لاصقة/ضوئية/كرتونية)، والمواد الطاردة.</span></div>
+      <div class="guide-item"><b>الشركة المنتجة مقابل الشركة المشكِّلة</b><span class="gi-treat">الشركة المنتجة: تصنّع المادة الفعالة للمبيد (Technical material). الشركة المشكِّلة: تقوم بتشكيل المستحضر النهائي للمبيد (Final formulation) — تمييز مهم عند تقييم مصدر أي مبيد.</span></div>
+      <div class="guide-item"><b>نظام التسجيل المتكامل</b><span class="gi-treat">مجموعة الاختبارات الإلزامية قبل ترخيص أي مبيد للاستخدام الزراعي، وتشمل كحد أدنى: السمية على ذوات الدم الحار (فئران، جرذان، أرانب)، السمية على الكائنات المفيدة (نحل، أسماك، طيور)، دراسات سلوك المبيد بالتربة والماء والهواء والنبات، اختبارات فاعلية المبيد على الآفة، والسمية النباتية.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🏭 شروط استيراد وتسجيل المبيدات (الشركات)</h3>
+      <div class="guide-item"><span class="gi-treat">يُسمح باستيراد المبيدات من كل دول العالم بعد تسجيلها لدى وزارة الزراعة والإصلاح الزراعي وتأمين وثيقة بعدم وجود مانع من التعامل مع الشركة من مكتب مقاطعة إسرائيل. يشترط أن تكون الشركة منتجة بدولة تطبّق نظام التسجيل المتكامل؛ وإن لم تطبّقه دولتها، يُسمح بإدخال مبيداتها إذا كانت مسجّلة بدولة أخرى تطبّق هذا النظام. فروع الشركة الأم بدول أخرى تُعامل معاملة الشركة الأم بشرط تقديم وثيقة تبعية مصدّقة. مجموعة الشركات المتحدة بإدارة واحدة تُعامل معاملة شركة واحدة. يُسمح بالتعاون بين شركتين لإنتاج مبيد بشرط أن يكون الطرفان منتجين للمادة الفعالة. الشركات المسوّقة فقط (بدون إنتاج) يُسمح بالتعامل معها فقط إن لم تكن الشركة المنتجة تسوّق بنفسها مباشرة، ويُمنع التعامل نهائيًا مع شركات تُشكِّل فقط دون إنتاج أي مادة فعالة.</span></div>
+    </div>
+
+    <div class="guide-group">
       <h3>📄 شروط الحصول على ترخيص محل تداول المواد الزراعية</h3>
       <div class="guide-item">
         <b>الشروط الأساسية بمقدم الطلب</b>
@@ -949,6 +1010,100 @@ function buildLicenseGuide(){
     </div>
 
     <div class="guide-group">
+      <h3>🧪 التصنيف الكيميائي الكامل للمبيدات</h3>
+      <div class="guide-item"><b>1. المبيدات غير العضوية</b><span class="gi-treat">مركبات الزرنيخ والفلور والكبريت والفوسفور: زرنيخات الرصاص، زرنيخات الكالسيوم، زرنيخات النحاس، زرنيخات الصوديوم، زرنيخات المغنيسيوم، زرنيخات الزنك، فلوريد الصوديوم، فلوسيليكات الباريوم، فلوسيليكات الصوديوم، فلوألومينات الصوديوم، فوسفيد الزنك، مسحوق الكبريت، الكبريت الميكروني، الكبريت القابل للبلل.</span></div>
+      <div class="guide-item"><b>2. الزيوت</b><span class="gi-treat">زيت الفولك، زيت التربونا، زيت الألبوليوم، زيت إسو، زيت السويس، والزيوت المخلوطة.</span></div>
+      <div class="guide-item"><b>3. الغازات والأدخنة</b><span class="gi-treat">غاز بروميد الميثيل (CH₃Br)، غاز حامض الأيدروسيانيك (HCN)، غاز فوسفيد الأيدروجين (PH₃).</span></div>
+      <div class="guide-item"><b>4. المبيدات الحشرية من أصل نباتي</b><span class="gi-treat">النيكوتين، البيرثرين، الروتينون، الريانيا، النيماتاودا.</span></div>
+      <div class="guide-item"><b>5. مركبات الكلور العضوية</b><span class="gi-treat">D.D.T ومشابهاته، سادس كلوريد البنزين (الليندين)، توكسافين، الكلوردين، الهبتاكلور، الألدرين، الديالدرين، الإندرين، الثيمول.</span></div>
+      <div class="guide-item"><b>6. مركبات الفوسفور العضوية</b><span class="gi-treat">الملاثيون، الباراثيون، ميثايل باراثيون، دورسبان، فوسفيل، أكتلك، ديبتركس، ليباسيد، جوزاثيون، سوبراسيد، جاردونا، ترايازوفوس.</span></div>
+      <div class="guide-item"><b>7. المركبات الفوسفورية الجهازية</b><span class="gi-treat">ميتاسيستوكس، سيستوكس، ميتاإيزوسيستوكس، ديمكرون، إيكاتين، ثيمت، دايسيستون، ديمثويت، بدرين، فوليمات، سيولين، سيترولين، نوفاكرون، تمارون، أزودرين.</span></div>
+      <div class="guide-item"><b>8. مركبات الكرباميت</b><span class="gi-treat">إسترات حمض الكرباميك؛ من أهمها: السيفين، لانيت، تنيك، زكتران، ميتاسيل، ميسورول، إتروفلان.</span></div>
+      <div class="guide-item"><b>9. مركبات الكبريت العضوية</b><span class="gi-treat">تُستخدم أساسًا كمبيدات عناكب، مثل: التديون، الإريزيت.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>📦 احتياطات تخزين المبيدات</h3>
+      <div class="guide-item"><span class="gi-treat">لا تحتفظ بأي مبيد مخلوط بالماء لمدة طويلة لاستعماله لاحقًا · لا تستعمل أوعية الشراب وزجاجاته لتخزين المبيد · احفظ المبيد بمكان مظلل بعيدًا عن الأطفال · احتفظ بالعبوة الفارغة بعد الرش لمدة 15 يومًا؛ وإن حدثت أي حالة تسمم خذها للطبيب لأن مضادات التسمم تختلف من مبيد لآخر.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>✅ احتياطات ما قبل استعمال المبيدات</h3>
+      <div class="guide-item"><span class="gi-treat">اقرأ التعليمات المسجّلة على العبوة وتفهّمها جيدًا · تأكد من صلاحية المبيد · تأكد من فعاليته ضد الآفة المستهدفة تحديدًا · تأكد من الآثار المصاحبة للتسمم بالمبيد المستخدم · لا تستعمل المبيدات المنزلية للأشجار والنباتات، فقد يؤثر عليها الإيروسول المستخدم فيها.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>⚠️ احتياطات أثناء استعمال المبيدات</h3>
+      <div class="guide-item"><span class="gi-treat">تأكد من فترة الأمان (المدة المحرَّمة) قبل جني الثمار · لا تخلط المبيد بنسب أقوى من الموصى به على العبوة · لا ترش بالأيام المشمسة أو شديدة الحرارة، رُش عند الغروب أو العصر · رُش مع اتجاه الريح لا عكسه · البس المعاطف الواقية والقفازات والنظارات وكل ما يطلبه المصنّع · لا ترش وقت تفتح الأزهار وإطلاق حبوب اللقاح · استعمل مرشة جيدة تعمل بالضغط وتطلق رذاذًا ناعمًا · رُش والأوراق جافة بلا ندى · رُش بكمية وافرة تغطي كل الأوراق حتى التصبب · استعمل مرشة ذات قصبة طويلة أو سلمًا للأشجار العالية، وتجنب الرش وأنت جالس تحتها · لا تدخّن أثناء الرش.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🧼 احتياطات بعد استعمال المبيدات</h3>
+      <div class="guide-item"><span class="gi-treat">لا تستعمل نفس المرشة لمبيد حشائش ثم مبيد حشري خوفًا من بقايا تؤثر على نباتات أخرى · اغسل أي بقعة تصيبك من المبيد فورًا · لا تستعمل أدوات المبيد لأي غرض آخر · لا تسمح للأطفال باللعب أو لمس النباتات المرشوشة حديثًا · اترك ملابس الرش بالشمس والهواء الطلق لمدة 20 يومًا على الأقل.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🩺 طرق دخول المادة السامة إلى الجسم</h3>
+      <div class="guide-item"><b>الطريق الهضمي</b><span class="gi-treat">أسرع الطرق وأخطرها وأكثرها شيوعًا؛ يحدث غالبًا بتناول مواد نباتية معالجة حديثًا، أو ابتلاع السم خطأ على أنه طعام أو دواء (الأطفال معرّضون أكثر).</span></div>
+      <div class="guide-item"><b>الطريق التنفسي</b><span class="gi-treat">المركبات الغازية تدخل مباشرة للرئتين عبر الأنف؛ بعض المركبات السائلة تتصاعد منها أبخرة خصوصًا بارتفاع الحرارة، فالضرر أكبر بالأوقات الحارة وساعات النهار.</span></div>
+      <div class="guide-item"><b>الطريق الجلدي</b><span class="gi-treat">بعض المواد المنحلة بالدهن تنفذ عبر طبقات الجلد للدوران اللنفاوي والدموي، لذا المركبات السائلة أخطر من المسحوقة لسرعة تحللها بالشحوم الجلدية.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>🚑 أعراض التسمم وعلاجه التفصيلي حسب كل مجموعة كيميائية</h3>
+      <div class="guide-item"><b>المركبات الزرنيخية</b> (زرنيخ أبيض، أخضر باريس، زرنيخات الرصاص)
+        <span class="gi-treat">الأعراض: آلام حنجرة، عطش، نبض ضعيف غير منتظم، تخرش الأغشية المخاطية للمعدة. العلاج: مادة مقيئة + كأس حليب، ويمكن إعطاء 15غ (بنصف كأس ماء فاتر) من خليط: فحم منشّط جزءان + أكسيد مغنيسيوم جزء + حامض تانيك جزء، أو غسل المعدة بـ240 سم³ من محلول بيكربونات الصوديوم 5% مخفف بلتر ماء فاتر مع 30غ كبريتات مغنيسيوم.</span>
+      </div>
+      <div class="guide-item"><b>المركبات الفلورية والفليوسيليكات</b> (فلورور الصوديوم، فلوسيليكات الصوديوم/الباريوم)
+        <span class="gi-treat">الأعراض: تخرش الأنبوب الهضمي، آلام رأس، دوخة، احتقان الرئتين. العلاج: مادة مقيئة + حليب، وحقنة عضلية 10 سم³ من محلول جلوكونات الكالسيوم 10%، مع تنفس اصطناعي وأوكسجين ممزوج بـ5% ثاني أكسيد الكربون.</span>
+      </div>
+      <div class="guide-item"><b>المركبات الفوسفورية العضوية</b> (باراثيون، مالاثيون، ديازينون، ديبتركس، ليباسيد، ديمكرون)
+        <span class="gi-treat">الآلية: توقف عمل خميرة الكولين أستريز فيتراكم الأستيل كولين ويزداد تنبيه الجهاز العصبي. الأعراض: تعرق، دوخة، قيء، اضطرابات رئوية، أوجاع رأس (تظهر بعد نصف ساعة). العلاج: سلفات الأتروبين + استفراغ بماء فاتر ومِلح + تنفس اصطناعي وأوكسجين.</span>
+      </div>
+      <div class="guide-item"><b>مركبات الفحوم الهيدروجينية الكلورية</b> (D.D.T، الجامكسان، الكلوردان، التوكسافين، الألدرين، الديدرين، الإندرين، الهبتاكلور، الثيودان)
+        <span class="gi-treat">الآلية: تراكم بالأنسجة الدهنية وتخرش الكبد. الأعراض: رجفة، دوخة، اضطراب عصبي. العلاج: شاي وقهوة ساخنان مع 30غ ملح إنكليزي.</span>
+      </div>
+      <div class="guide-item"><b>المركبات الزئبقية</b> (ثاني كلور الزئبق، كلور الزئبق، السيريسان)
+        <span class="gi-treat">الأعراض: التهاب الحنجرة، عطش شديد، نبض سريع، برودة الأطراف، التهاب الجهاز الهضمي. العلاج: حليب كمضاد أولي، وحقن وريدي 100-200 سم³ من محلول سلفوكسيلات الصوديوم والفورمالدهيد 5-10% محضّر حديثًا.</span>
+      </div>
+      <div class="guide-item"><b>مركبات الزنك</b> (فوسفيد الزنك)
+        <span class="gi-treat">الأعراض تشبه التسمم الزرنيخي والزئبقي. العلاج: ملعقة صغيرة من فوسفات ثنائي الصوديوم مع ماء، يتبعها 15غ ملح طعام بكأس ماء فاتر، ثم شاي وقهوة.</span>
+      </div>
+      <div class="guide-item"><b>غاز بروميد الميثيل</b>
+        <span class="gi-treat">الأعراض: دوخة، تعب، رغبة بالتقيؤ، آلام بطن (التهاب رئتين وقصبات). العلاج: إخراج فوري للهواء الطلق + تنفس اصطناعي + منبهات كالقهوة والشاي.</span>
+      </div>
+      <div class="guide-item"><span class="gi-treat">⚠️ ملاحظة مهمة: كل ما سبق إسعافات أولية مؤقتة ريثما يصل الطبيب فقط، ولا تغني إطلاقًا عن المراجعة الطبية الفورية في كل حالة تسمم.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>📋 توصيات عامة لاستعمال ومزج المبيدات بأمان</h3>
+      <div class="guide-item"><span class="gi-treat">استعمال السموم بالكميات المقترحة بدقة · المكافحة بالوقت المناسب فور ظهور أعراض الإصابة وقبل تفاقم الضرر · التأكد من نظافة المرش قبل الاستعمال · خلط المبيد بقليل ماء بوعاء خاص أولاً ثم إضافته للمرش والتأكد من مزجه جيدًا · الرش صباحًا باكرًا وقت هدوء الرياح ومع اتجاهها · عدم الرش على نبات مجهد مائيًا أو مروي حديثًا أو بعد مطر إلا بعد جفاف الأرض · التأكد من تغطية محلول الرش لكل أجزاء النبات · عدم وجود حيوانات (أبقار، أغنام، دجاج) بمنطقة المكافحة · غسل الخضار والفاكهة جيدًا ومرارًا قبل الأكل · عدم غسل أدوات المكافحة بالمياه الجارية أو السواقي أو رميها فيها · عدم غسلها بمراعٍ أو حقول ترتادها الحيوانات · دفن أوعية المبيدات الفارغة بحفرة عميقة بأرض غير منزرعة وردمها جيدًا · ألا يعمل عامل الرش أكثر من 6 ساعات يوميًا، ومراجعة الطبيب فورًا عند أي ألم أو دوخة · اصطحاب أقراص سلفات الأتروبين دائمًا أثناء العمل بالمبيدات.</span></div>
+      <div class="guide-item"><b>🐝 حماية نحل العسل والحشرات النافعة</b><span class="gi-treat">تفضيل المبيدات غير الضارة بالنحل · مكافحة الآفات قبل الإزهار، صباحًا باكرًا أو عند الغروب وقت وجود النحل بخلاياه · تفضيل الرش على التعفير · إخطار النحالين المجاورين قبل يومين على الأقل من موعد المكافحة لإغلاق الخلايا.</span></div>
+    </div>
+
+    <div class="guide-group">
+      <h3>⚗️ مزج المبيدات وتقسيمها — قواعد عملية</h3>
+      <div class="guide-item"><b>قد يؤدي الخلط الخاطئ إلى</b><span class="gi-treat">نتيجة عكسية للمبيد، خسارة اقتصادية، عدم نجاح عملية الرش والمكافحة، وربما الإضرار الكامل بالمحصول.</span></div>
+      <div class="guide-item"><b>قواعد يجب أن يحققها خلط المبيدات</b><span class="gi-treat">التوافق الكيميائي والتوافق الفيزيائي، مع مراعاة الترتيب الصحيح بالإضافة حسب نوع التركيب: 1) مسحوق قابل للبلل، 2) حبيبات قابلة للبلل أو الانتشار بالماء، 3) معلق مركز، 4) كبسولات معلقة، 5) مركز قابل للاستحلاب، 6) سائل قابل للذوبان.</span></div>
+      <div class="guide-item"><b>كيف تُختبر قابلية خلط مبيدين قبل التطبيق الفعلي؟</b><span class="gi-treat">أنبوبة اختبار أو عبوة فارغة صغيرة، يوضع فيها 1 سم من كل مبيد سيتم خلطه، ثم يُلاحظ الخليط: أي حدوث فوران أو ترسيب أو طفو لأحد المبيدات يعني عدم إمكانية إتمام الخلط.</span></div>
+      <div class="guide-item"><b>حالات ممنوع الخلط فيها (تحديدًا)</b><span class="gi-treat">مبيد يحتوي نحاسًا مع أي مبيدات أخرى · الكبريت مع أي مبيد (يُرش منفردًا) · المبيدات الفطرية مع الأسمدة الورقية · مبيدات العناكب مع أي مبيدات · الأحماض الأمينية والأسمدة الورقية غير المخلبية مع المبيدات · الأسمدة الورقية النحاسية مع المبيدات النحاسية · لا يُفضَّل خلط الأسمدة الورقية مع المبيدات وبالأخص الفطرية · المبيدات الحشرية مع الفطرية · المبيدات الفطرية مع الزيوت المعدنية · يُفضَّل عدم خلط المبيدات الفطرية ببعضها · عدم استخدام المبيدات النحاسية خلال موسم التزهير (تؤثر على حبوب اللقاح) · مراعاة عدم الرش عند ارتفاع درجات الحرارة · مراعاة استخدام المبيدات الوقائية والعلاجية بالمعدلات المنصوص عليها · عدم رش المبيد الواحد أكثر من مرتين متتاليتين (تلافيًا لظهور مقاومة) · عدم خلط المبيدات الفوسفورية العضوية الحساسة مع بعضها كي لا تتفكك المركبات الفوسفورية · عدم خلط المبيدات التي تحتوي فوسفور عضوي (البيربان، الملاثيون) مع أي مستحضر به مانكوزيب · عدم خلط أي مبيد حشري فوسفوري مع عجينة بوردو.</span></div>
+      <div class="guide-item"><b>تصنيف المبيدات حسب طريقة الفعل</b><span class="gi-treat">مبيدات معدية/ملامسة: تمتصها النباتات وتنتقل عبر أنسجتها (جهازية لحائية أو جهازية خشبية)؛ لا تحتاج تغطية تامة للنبات، أقل تأثيرًا على الأعداء الحيوية، لكن أسعارها مرتفعة وضعف انتقالها من الأسفل للأعلى يخفّض كفاءتها بمكافحة آفات الجذور، وبعضها يتحول داخل النبات لمركبات أكثر سمية.</span></div>
+      <div class="guide-item"><b>تصنيف المبيدات حسب الآفة المستهدفة</b><span class="gi-treat">المبيدات الحشرية، مبيدات الحشائش، المبيدات الفطرية، مبيدات النيماتودا، مبيدات القواقع، المبيدات الحيوية (بكتيريا Pseudomonas، فطر Beauveria bassiana، فيروس بولي هيدروزيس النووي لحشرات ورق القطن وبعض أنواع الذباب)، فرمونات تشويش الأزواج، الأزاديراكتين، زيت الكانولا لآفات نباتات الزينة، زيت الزعتر لآفات المن.</span></div>
+      <div class="guide-item"><b>آليات فعل إضافية</b><span class="gi-treat">مانعات التغذية: تثبّط المستقبلات الحسية الكيميائية الخاصة بالتذوّق فتوقف الحشرة عن التغذي · المعقّمات الكيميائية: تخفض أو توقف القدرة التناسلية · هرمونات الشباب: تعتمد على وجود الهرمون بفترات معينة من حياة الحشرة، فاختفاؤه بفترة تحتاجه يسبب خللًا بتطورها · مثبطات تطور الحشرة ومثبطات تخليق الكيتين · المواد الطاردة (لمكافحة الحشرات والقوارض والطيور) · الجاذبات (الجنسية والغذائية).</span></div>
+      <div class="guide-item"><b>عوامل تصنيف إضافية للمبيدات</b><span class="gi-treat">نوع الآفة المستهدفة · طريقة دخول المبيد لجسم الآفة أو طريقة تأثيره عليها · التركيب الكيميائي · طبيعة ونوع المستحضر · وقت الاستخدام (وقائي/علاجي) · طريقة الاستعمال أو التطبيق · أسلوب التطبيق أو الرش (تغطية عامة/جزئية) · سلوك المبيد (جهازي/غير جهازي) · موضع التطبيق · ميعاد التطبيق · الاختيارية أو الانتقالية للمبيد.</span></div>
+      <div class="guide-item"><b>تصنيف حسب نوع المستحضر (الشكل التجاري)</b><span class="gi-treat">1) مستحضرات جافة: مساحيق تعفير (dp)، محببات (gr)، محببات دقيقة (mg). 2) مستحضرات الرش المتناهية الدقة (ulv). 3) مستحضرات تُمزج بالماء رشًا: حبيبات قابلة للبلل أو الانتشار (wg)، مركزات قابلة للاستحلاب (ec)، مساحيق قابلة للبلل (wp)، مركزات معلّقة (sc)، مساحيق قابلة للذوبان (sl)، مركزات قابلة للاستحلاب (sp). 4) مستحضرات للطعوم (B). 5) مستحضرات لمعاملة البذور (S). 6) مستحضرات للتبخير والتدخين (F). 7) مستحضرات متنوعة أخرى (M): لسوائل معالجة الحيوان (po)، والمستحضرات الشمعية (gs).</span></div>
+      <div class="guide-item"><b>أهم المبيدات والمواد المسموحة بالزراعة العضوية</b>
+        <span class="gi-treat">
+        المبيدات النباتية — زيت النيم (Azadirachtin): يكافح الحشرات الماصة والمن. البيريثرين (Pyrethrins): مستخلص من زهور الأقحوان، يشلّ الحشرات. الروتينون (Rotenone): مستخلص نباتي.<br>
+        المبيدات المعدنية — الكبريت (Sulfur): واسع الاستخدام ضد الأمراض الفطرية كالبياض الدقيقي. النحاس (Copper): مركبات وقائية بحدود سمية معينة لمقاومة الفطريات والبكتيريا. الزيوت المعدنية الشتوية/الصيفية: تخنق الحشرات والبيض.<br>
+        المبيدات الحيوية (الميكروبية) — بكتيريا Bacillus thuringiensis (Bt): لمكافحة اليرقات والديدان. الفطريات النافعة Trichoderma: لعلاج أعفان الجذور. الفيروسات مثل NPV: لمكافحة دودة ثمار العنب.<br>
+        مواد طبيعية أخرى — بيكربونات الصوديوم/البوتاسيوم: لمكافحة البياض الدقيقي. الصابون البوتاسي: يقضي على الحشرات الصغيرة كالبق والمن (يُصنع من خليط زيت الزيتون وهيدروكسيد البوتاسيوم).
+        </span>
+      </div>
+      <div class="guide-item"><b>مبيدات جاهزة مسجّلة عالميًا (أمثلة)</b><span class="gi-treat">أزافيت (إسبانيا): مركب من الأزاديراكتين مشتق من نبات النيم. زيت البرتقال: يقتل العث والآفات ومسببات الأمراض الفطرية. فليبير: أحماض كربوكسيلية من زيت الزيتون تقتل حشرات الأجسام الرخوة كالمن. زيت الزعتر: يكافح المن ويقاوم بعض الأمراض الفطرية. لوفيل (فرنسا): يحتوي على البارافين ويغطي الآفة والعث بطبقة تخنقها. الكاولين: مادة طينية تشكّل حاجزًا ماديًا يمنع تغذي الحشرات وتصدّها. الشيتوزان: مشتق من الكيتين، مضاد للفطريات المسببة للأمراض. الدياتومية: بقايا كائنات مائية متحجرة، تمتص الدهون من جلد الحشرات فتموت جفافًا (شائعة لمنع إصابة المحاصيل المخزّنة بالسوس والخنافس).</span></div>
+    </div>
+
+    <div class="guide-group">
       <h3>⚠️ تصنيف سمية المبيدات (منظمة الصحة العالمية / الأغذية والزراعة)</h3>
       <table class="guide-table">
         <tr><th>الفئة</th><th>لون البطاقة</th><th>العلامة</th><th>درجة السمية</th></tr>
@@ -959,27 +1114,21 @@ function buildLicenseGuide(){
         <tr><td>U</td><td>خضراء</td><td>علامة X</td><td>تحذير خفيف</td></tr>
       </table>
       <div class="guide-item" style="margin-top:8px;">
-        <b>تصنيف آخر (وكالة حماية البيئة الأمريكية EPA)</b>
-        <span class="gi-treat">4 فئات سمية؛ الفئات 1-3 تتطلب إلزاميًا كلمة تحذير على الملصق ("خطر-سم" للفئة الأولى، "تحذير" للثانية والثالثة)، بينما الفئة الرابعة غير سامة عمليًا</span>
+        <b>جرعة LD50 القاتلة النصفية (تقريبية) لكل فئة</b>
+        <span class="gi-treat">Ia: أقل من 5 مجم/كغ (صلبة) أو 0-20 مجم/كغ (سائلة). Ib: 5-50 مجم/كغ (صلبة) أو 20-200 مجم/كغ (سائلة). II: 50-500 مجم/كغ (صلبة) أو 200-2000 مجم/كغ (سائلة). III: 500-2000 مجم/كغ (صلبة) أو 2000-3000 مجم/كغ (سائلة). U: أكثر من 2000-5000 مجم/كغ أو أكثر.</span>
       </div>
-    </div>
-
-    <div class="guide-group">
-      <h3>🧪 قواعد ممنوع خلطها معًا</h3>
-      <div class="guide-item"><span class="gi-treat">المبيد المحتوي على نحاس مع أي مبيدات أخرى · الكبريت مع أي مبيد (يُرش منفردًا) · المبيدات الفطرية مع الأسمدة الورقية · مبيدات العناكب مع أي مبيدات · الأحماض الأمينية والأسمدة الورقية غير المخلبية مع المبيدات · الأسمدة الورقية النحاسية مع المبيدات النحاسية · المبيدات الحشرية مع الفطرية · المبيدات الفطرية مع الزيوت المعدنية · المبيدات النحاسية خلال موسم التزهير (تؤثر على حبوب اللقاح) · رش نفس المبيد أكثر من مرتين متتاليتين (لتجنب ظهور المقاومة) · المبيدات الفوسفورية العضوية مع بعضها (خطر تفكك المركبات)</span></div>
-    </div>
-
-    <div class="guide-group">
-      <h3>🚑 الإسعافات الأولية الأساسية حسب نوع التسمم</h3>
-      <div class="guide-item"><b>المركبات الفوسفورية العضوية</b><span class="gi-treat">الأعراض: تعرق، دوخة، قيء، اضطرابات رئوية. الإسعاف: سلفات الأتروبين + تنفس اصطناعي + أوكسجين، ثم طبيب فورًا</span></div>
-      <div class="guide-item"><b>المركبات الزرنيخية</b><span class="gi-treat">الأعراض: آلام حنجرة، عطش، نبض غير منتظم. الإسعاف: مادة مقيئة وحليب، ثم طبيب فورًا</span></div>
-      <div class="guide-item"><b>غاز بروميد الميثيل</b><span class="gi-treat">الأعراض: دوخة، تعب، رغبة بالتقيؤ. الإسعاف: إخراج المصاب للهواء الطلق فورًا وتنفس اصطناعي</span></div>
-      <div class="guide-item"><span class="gi-treat">ملاحظة: هذه إسعافات أولية مؤقتة فقط ريثما يصل الطبيب، ولا تغني عن المراجعة الطبية الفورية في كل حالة تسمم.</span></div>
-    </div>
-
-    <div class="guide-group">
-      <h3>🛡️ قواعد السلامة العامة أثناء الرش</h3>
-      <div class="guide-item"><span class="gi-treat">الرش عند الغروب أو العصر، لا بالأيام الحارة المشمسة · الرش مع اتجاه الريح لا عكسه · لبس الملابس والقفازات والنظارات الواقية · عدم الرش وقت تفتح الأزهار (حماية حبوب اللقاح والنحل) · إخطار النحالين قبل يومين من الرش · عدم الأكل أو الشرب أو التدخين أثناء الرش · غسل اليدين فورًا بعد الانتهاء · عدم العمل أكثر من 6 ساعات يوميًا بالرش · حمل أقراص سلفات الأتروبين احتياطًا · التخلص من العبوات الفارغة بالدفن بعيدًا عن مصادر المياه، لا بحرقها أو إعادة استخدامها</span></div>
+      <div class="guide-item">
+        <b>تصنيف آخر (وكالة حماية البيئة الأمريكية EPA)</b>
+        <span class="gi-treat">4 فئات سمية؛ الفئات 1-3 تتطلب إلزاميًا كلمة تحذير على الملصق ("خطر-سم" للفئة الأولى، "تحذير" للثانية والثالثة)، بينما الفئة الرابعة غير سامة عمليًا.</span>
+      </div>
+      <div class="guide-item">
+        <b>حدود الأمان والأثر المتبقي</b>
+        <span class="gi-treat">حدود الأمان: أقصى كمية مسموح بها من متبقيات المبيد بالغذاء بما يضمن الاستهلاك اليومي الآمن. الأثر المتبقي: ما يتبقى فعليًا من المبيد داخل أو على المنتجات الزراعية، ويُعبَّر عنه بالجزء من مليون (ملغ/كغ).</span>
+      </div>
+      <div class="guide-item">
+        <b>أضرار الاستخدام الخاطئ على البيئة والإنسان</b>
+        <span class="gi-treat">ظهور آفات مقاومة تستوجب تصنيع مبيدات جديدة أقوى · القضاء على الأعداء الحيوية النافعة والإضرار بالنحل · ارتفاع معدل تكاثر بعض الآفات نتيجة تأثير المبيدات على البيوكيميائية النباتية · تلوث الهواء (رش المبيدات يمثّل نحو 6% من إجمالي مستويات الأوزون بالتروبوسفير) · تلوث المياه السطحية (دراسة أمريكية وجدت تلوث أكثر من 90% من الآبار المفحوصة) · تلوث التربة وتدهور الكائنات الدقيقة المكوّنة لخصوبتها.</span>
+      </div>
     </div>
   `;
 }
